@@ -1,3 +1,6 @@
+*.cache
+*.log
+tests/phpunit
 cache
 log
 vendor
