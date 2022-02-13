@@ -6,18 +6,25 @@
     "keywords": ["RestFull, API, Framework"],
     "readme" : "./",
     "license": "MIT",
+
+
     "authors": [
         {
             "name":"Rob Demmenie",
             "email": "rob@jaribio.com",
-            "homepage": "https://ww.jaribio.com",cd
+            "homepage": "https://ww.jaribio.com",
             "role": "developer"
         }
     ],
+
+
     "support": {
         "email": "suppport@jaribio.com"
     },
+
+
     "minimum-stability": "dev",
+
 
 
     "require": {
@@ -25,9 +32,12 @@
         "paragonie/sodium_compat": "^1.17"
     },
 
+
     "autoload": {
         "psr-4": {
             "Quadro\\": "libraries/Quadro"
         }
     }
+
+
 }
