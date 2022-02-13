@@ -1,0 +1,33 @@
+{
+    "name" :  "jaribio/quadro-framework",
+    "version": "1.0.0",
+    "description": "A lightweight, less is more, PHP server framework",
+    "type": "library",
+    "keywords": ["RestFull, API, Framework"],
+    "readme" : "./",
+    "license": "MIT",
+    "authors": [
+        {
+            "name":"Rob Demmenie",
+            "email": "rob@jaribio.com",
+            "homepage": "https://ww.jaribio.com",cd
+            "role": "developer"
+        }
+    ],
+    "support": {
+        "email": "suppport@jaribio.com"
+    },
+    "minimum-stability": "dev",
+
+
+    "require": {
+        "firebase/php-jwt": "^5.4",
+        "paragonie/sodium_compat": "^1.17"
+    },
+
+    "autoload": {
+        "psr-4": {
+            "Quadro\\": "libraries/Quadro"
+        }
+    }
+}
