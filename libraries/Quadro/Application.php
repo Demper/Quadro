@@ -722,7 +722,9 @@ class Application implements JsonSerializable
          * Autoload stuff.
          * NOTE the library are loaded as wel as defined in the composer.json
          */
-        require_once QUADRO_DIR .'vendor'.DS.'autoload.php';
+        if (is_file(QUADRO_DIR .'vendor'.DS.'autoload.php')) {
+            require_once QUADRO_DIR . 'vendor' . DS . 'autoload.php';
+        }
 
     }
 
