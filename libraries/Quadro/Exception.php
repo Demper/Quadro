@@ -45,10 +45,10 @@ class Exception extends \Exception implements JsonSerializable
     ])]
     public function jsonSerialize(): array
     {
-        if (Application::getInstance()->getEnvironment() === QUADRO_ENV_PRODUCTION) {
+        if (Application::getInstance()->getEnvironment() === Application::ENV_PRODUCTION) {
             return [
                 'code' => $this->getCode(),
-                'message' => 'Exception'
+                'message' => $this->getMessage()
             ];
         }  else {
             return [
@@ -102,10 +102,10 @@ class Exception extends \Exception implements JsonSerializable
      */
     protected function _inProduction(): bool
     {
-        if (false === getenv(QUADRO_ENV_INDEX) ) {
-            putenv(QUADRO_ENV_INDEX .'=' . QUADRO_ENV_PRODUCTION);
+        if (false === getenv(Applicatioon::ENV_INDEX) ) {
+            putenv(Application::ENV_INDEX .'=' . Application::ENV_PRODUCTION);
         }
-        return getenv(QUADRO_ENV_INDEX) === QUADRO_ENV_PRODUCTION;
+        return getenv(Application::ENV_INDEX) === Application::ENV_PRODUCTION;
     }
 
 

@@ -75,6 +75,7 @@ class Application implements JsonSerializable
      */
     const ENV_STAGING     = 'staging';
 
+    const ENV_INDEX =  'APPLICATION_ENV';
 
     /**
      * Called in the getInstance() method.
@@ -157,7 +158,7 @@ class Application implements JsonSerializable
         return Application::$_instance;
     }
 
-    // -----------------------------------------------------------------------------------------------------------
+    // ----------------------------------------Quadro\Application::ENV_INDEX-------------------------------------------------------------------
 
     /**
      * @ignore (do not show up in generated documentation)
@@ -241,7 +242,7 @@ class Application implements JsonSerializable
     protected IDispatcher $_defaultDispatcher;
 
     /**
-     * Returns the Fallback Dispatcher.
+     * Returns the Fallback Dispatcher.Quadro\Application::ENV_INDEX
      *
      * If not already added creates and adds a default Dispatcher
      *
@@ -379,7 +380,7 @@ class Application implements JsonSerializable
     // -----------------------------------------------------------------------------------------------------------
 
     /**
-     * @ignore (do not show up in generated documentation)
+     * @ignore (do not show up in generated docQuadro\Application::ENV_INDEXumentation)
      * @var array Internal cache for already checked interfaces
      */
     protected array $_checkConfigClassesInterfacesCache = [];
@@ -495,10 +496,10 @@ class Application implements JsonSerializable
     }
     public static function environment(): string
     {
-        if (false === getenv(QUADRO_ENV_INDEX) ) {
-            putenv(QUADRO_ENV_INDEX .'=' . QUADRO_ENV_PRODUCTION);
+        if (false === getenv(Application::ENV_INDEX) ) {
+            putenv(Application::ENV_INDEX .'=' . Application::ENV_PRODUCTION);
         }
-        return getenv(QUADRO_ENV_INDEX);
+        return getenv(Application::ENV_INDEX);
     }
 
     // -----------------------------------------------------------------------------------------------------------
@@ -512,7 +513,7 @@ class Application implements JsonSerializable
     #[NoReturn]
     public function exceptionHandler( Throwable $thrown ): void
     {
-        if ($this->getEnvironment() !== Application::ENV_PRODUCTION) {
+       // if ($this->getEnvironment() !== Application::ENV_PRODUCTION) {
             //if ($thrown instanceof \Exception) {
                 $this->getResponse()->setBody(
                     sprintf('%s: %s - %s (%s @ %d)',
@@ -526,9 +527,9 @@ class Application implements JsonSerializable
             //} else {
             //    $this->getResponse()->setBody( 'An Error has occurred' );
             //}
-        } else {
-            $this->getResponse()->setBody( 'An Error has occurred' );
-        }
+        //} else {
+        //    $this->getResponse()->setBody( 'An Error has occurred' );
+        //}
         $this->getResponse()->setStatusCode($thrown->getCode());
         $this->getResponse()->send();
     }
@@ -575,7 +576,6 @@ class Application implements JsonSerializable
     {
         try {
             $this->notifyObservers(self::EVENT_BEFORE_DISPATCH, $this->getRequest());
-
 
 
             // Dispatch the request.
@@ -640,7 +640,90 @@ class Application implements JsonSerializable
     #[NoReturn]
     public static function handleRequest():bool
     {
+        Application::init();
         return self::getInstance()->run();
+    }
+
+    public static function init(string $applicationPath = ''): void
+    {
+
+        if (defined('QUADRO_DIR')) return;
+
+        /**
+         * Get the path of the calling script and define this as the Application Folder
+         * This can also already be defined by the application
+         */
+        if(!defined('QUADRO_DIR_APPLICATION')) {
+            if (is_dir($applicationPath)) {
+                define('QUADRO_DIR_APPLICATION', rtrim($applicationPath, DIRECTORY_SEPARATOR). DIRECTORY_SEPARATOR);
+            } else {
+                $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1);
+                if (isset($backtrace[0]) && isset($backtrace[0]['file'])) {
+                    define('QUADRO_DIR_APPLICATION', dirname($backtrace[0]['file']) . DIRECTORY_SEPARATOR);
+                }
+                if (!defined('QUADRO_DIR_APPLICATION')) {
+                    exit('Quadro Initialization Error: Can not find a valid application path');
+                }
+
+            }
+        }
+
+        /**
+         * Some handy short cuts
+         */
+        if (!defined('DS')) define('DS', DIRECTORY_SEPARATOR);
+        if (!defined('NAMESPACE_SEPARATOR')) define('NAMESPACE_SEPARATOR', '\\');
+        if (!defined('NS')) define('NS', NAMESPACE_SEPARATOR);
+        if (!defined('PATH_SEPARATOR')) define('PATH_SEPARATOR', ';');
+        if (!defined('PS')) define('PS', PATH_SEPARATOR);
+
+        /**
+         * The path of the Quadro Framework
+         */
+        define(
+            'QUADRO_DIR',
+            realpath(__DIR__ . DS . '..' . DS . '..' . DS)  .DS);
+        ;
+
+        /**
+         * The Application directory must not be the same as this directory
+         */
+        if (QUADRO_DIR == QUADRO_DIR_APPLICATION){
+            exit('Quadro Initialization Error: The Application directory can not be the same as Quadro source Directory');
+        }
+
+        /**
+         * Quadro Constants for all directories inside the Quadro Api Framework
+         */
+        define('QUADRO_DIR_CONTROLLERS' , QUADRO_DIR . 'controllers' . DS);
+        define('QUADRO_DIR_LIBRARIES' , QUADRO_DIR . 'libraries' . DS);
+        define('QUADRO_DIR_RESOURCES' , QUADRO_DIR . 'resources' . DS);
+        define('QUADRO_DIR_TESTS' , QUADRO_DIR . 'tests' . DS);
+        define('QUADRO_DIR_VENDOR' , QUADRO_DIR . 'vendor' . DS);
+
+        /**
+         * force production environment just to be save if we forgot to set the
+         * environment variable
+         */
+        if (false === getenv(Application::ENV_INDEX) ) {
+            putenv(Application::ENV_INDEX . '=' . Application::ENV_PRODUCTION);
+        }
+
+        /**
+         * Add the default headers and add or overwrite with application specified headers
+         * NOTE: this also can be done in the response object
+         */
+        require_once QUADRO_DIR . 'headers.php';
+        if(is_file( QUADRO_DIR_APPLICATION . 'headers.php')) {
+            require_once  QUADRO_DIR_APPLICATION . 'headers.php';
+        }
+
+        /**
+         * Autoload stuff.
+         * NOTE the library are loaded as wel as defined in the composer.json
+         */
+        require_once QUADRO_DIR .'vendor'.DS.'autoload.php';
+
     }
 
     // -----------------------------------------------------------------------------------------------------------
@@ -655,6 +738,8 @@ class Application implements JsonSerializable
             'environment' => $this->getEnvironment(),
             'starttime' => $this->getStartTime(),
             'registry' => $this->getRegistry(),
+            'request' => $this->getRequest(),
+            'config' => $this->getConfig(),
         ];
     }
 

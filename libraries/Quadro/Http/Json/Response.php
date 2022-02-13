@@ -336,9 +336,7 @@ class Response extends BaseResponse implements JsonSerializable
     /**
      * Shortcut for adding a link to the home page
      * @return Response
-
      * @return $this
-     * @throws Application\RegistryException
      */
     public function addLinkToHome(): Response
     {
@@ -351,7 +349,6 @@ class Response extends BaseResponse implements JsonSerializable
     /**
      * Shortcut for adding a link to the current page
      * @return Response
-     * @throws Application\RegistryException
      */
     public function addLinkToSelf(): Response
     {
@@ -375,7 +372,6 @@ class Response extends BaseResponse implements JsonSerializable
     /**
      * Adds links for pagination if we have a countable return value
      * @return Response
-     * @throws Application\RegistryException
      */
     public function addPaginationLinks(): Response
     {
@@ -438,7 +434,7 @@ class Response extends BaseResponse implements JsonSerializable
             $response['return']['total']   = $this->getReturnTotal();
         }
 
-        $response['environment'] = Application::getInstance()->getEnvironment();
+
         $t = Application::getInstance()->getStartTime();
         $micro = sprintf("%06d",($t - floor($t)) * 1000000);
         $d = new DateTime( date('Y-m-d H:i:s.'.$micro, (int)$t) );
@@ -454,7 +450,10 @@ class Response extends BaseResponse implements JsonSerializable
             $response['messages']          = $this->getMessages();
         $response['status']['code']    = $this->getStatusCode();
         $response['status']['text']    = $this->getStatusText();
-        $response['headers']    = $this->getHeaders();
+        if (Application::environment() != Application::ENV_PRODUCTION) {
+            $response['environment'] = Application::getInstance()->getEnvironment();
+            $response['headers'] = $this->getHeaders();
+        }
         if (count($this->getLinks())) {
             $links = [];
             foreach ($this->getLinks() as $rel => $link) {

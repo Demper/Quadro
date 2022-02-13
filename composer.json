@@ -25,7 +25,10 @@
 
     "minimum-stability": "dev",
 
-
+    "archive"
+    "exclude": {
+        "/tests"
+    },
 
     "require": {
         "firebase/php-jwt": "^5.4",

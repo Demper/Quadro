@@ -95,7 +95,7 @@ if (!headers_sent()) {
     /**
      * Caching depends on the environment variable, if not in production no caching
      */
-    if (getenv(QUADRO_ENV_INDEX) != QUADRO_ENV_PRODUCTION) {
+    if (getenv(Quadro\Application::ENV_INDEX) != Quadro\Application::ENV_PRODUCTION) {
         header('Cache-Control: must-revalidate no-cache no-store no-transform max-age=0 s-maxage=0');
     }
 

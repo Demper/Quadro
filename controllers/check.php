@@ -17,9 +17,8 @@
 declare(strict_types=1);
 
 if (Quadro\Application::getInstance()->getEnvironment() == Quadro\Application::ENV_PRODUCTION) {
-    throw new Quadro\Dispatcher\ForbiddenException('Not available in production');
+    throw new Quadro\Dispatcher\ForbiddenException('Not available');
 }
-
 $app = Quadro\Application::getInstance();
 $app->getResponse()->addMessage('Not Implemented yet');
 $app->getResponse()->setStatusCode(409);

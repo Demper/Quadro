@@ -16,7 +16,7 @@
  */
 declare(strict_types=1);
 if (Quadro\Application::getInstance()->getEnvironment() == Quadro\Application::ENV_PRODUCTION) {
-    throw new Quadro\Dispatcher\ForbiddenException('Not available in production');
+    throw new Quadro\Dispatcher\ForbiddenException('Not available');
 }
 header('Content-Type: text/html');
 phpinfo();
