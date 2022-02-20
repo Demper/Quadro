@@ -18,6 +18,12 @@ $applicationClassFile =  realpath(
     __DIR__."{$s}..{$s}..{$s}..{$s}..{$s}libraries{$s}Quadro{$s}Application.php"
 );
 require_once $applicationClassFile;
+$app = Quadro\Application::getInstance();
+
+/**
+ * Register the Authentication component
+ */
+$app->addComponent(new Quadro\Authentication\Jwt());
 
 /**
  * By setting the environment variable to "development" we enable DEBUG mode
@@ -28,4 +34,4 @@ putenv(Quadro\Application::ENV_INDEX . '=' . Quadro\Application::ENV_DEVELOPMENT
 /**
  * Let the application handle the request
  */
-Quadro\Application::handleRequest();
+$app->run();

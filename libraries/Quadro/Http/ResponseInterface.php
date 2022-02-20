@@ -22,10 +22,11 @@ interface ResponseInterface
 {
     public function getStatus(): string;
     public function getStatusText(): string;
+    public function setStatusText(string $text): static;
     public function getStatusCode(): int;
-    public function setStatusCode(int $statusCode): static;
+    public function setStatusCode(int $code): static;
     public function getHeaders(): array;
-    public function getBody(): string;
-    public function setBody(mixed $body, bool $append = false): self;
+    public function getContent(): string;
+    public function setContent(mixed $content, bool $append = false): self;
     public function send(): void;
 }

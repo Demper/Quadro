@@ -18,23 +18,20 @@ declare(strict_types=1);
 
 namespace Quadro;
 
-use Quadro\Config\Exception as ConfigurationException;
 use JetBrains\PhpStorm\ArrayShape;
 use JetBrains\PhpStorm\NoReturn;
 use JetBrains\PhpStorm\Pure;
-
-use Quadro\Application\Registry as Registry;
-use Quadro\Exception as Exception;
-use Quadro\Dispatcher\DefaultDispatcherException as DefaultDispatcherException;
-use Quadro\Config as Config;
-
-use Quadro\Application\ObserverInterface as IObserver;
-use Quadro\DispatcherInterface as IDispatcher;
+use JsonSerializable;
 use Quadro\Application\ComponentInterface as IComponent;
+use Quadro\Application\ObserverInterface as IObserver;
+use Quadro\Application\Registry as Registry;
+use Quadro\Config as Config;
+use Quadro\Config\Exception as ConfigurationException;
+use Quadro\Dispatcher\DefaultDispatcherException as DefaultDispatcherException;
+use Quadro\DispatcherInterface as IDispatcher;
+use Quadro\Exception as Exception;
 use Quadro\Http\RequestInterface as IRequest;
 use Quadro\Http\ResponseInterface as IResponse;
-
-use JsonSerializable;
 use Throwable;
 
 /**
@@ -150,6 +147,9 @@ class Application implements JsonSerializable
     public static function getInstance(array|Config $config = null): Application
     {
         if(!isset(Application::$_instance) || null === Application::$_instance) {
+
+            Application::_init();
+
             if (is_array($config)) {
                 $config = new Config($config);
             }
@@ -334,10 +334,10 @@ class Application implements JsonSerializable
 
                 // when adding a custom response class results in an exception we don have a response class
                 // so in case of an Config\Exception we set the response class to a default JSON Response
-                $this->getConfig()->setOption('response.class', 'Quadro\Http\Json\Response', true);
+                $this->getConfig()->setOption('response.class', 'Quadro\Http\Response\Json', true);
                 throw $e;
             }
-            $componentClass = $this->getConfig()->getOption('response.class', 'Quadro\Http\Json\Response');
+            $componentClass = $this->getConfig()->getOption('response.class', 'Quadro\Http\Response\Json');
             $this->_response = new $componentClass();
         }
         return $this->_response;
@@ -502,6 +502,12 @@ class Application implements JsonSerializable
         return getenv(Application::ENV_INDEX);
     }
 
+    public function debug() : bool
+    {
+        return ($this->getEnvironment() ==  Application::ENV_DEVELOPMENT);
+    }
+
+
     // -----------------------------------------------------------------------------------------------------------
 
     /**
@@ -511,25 +517,19 @@ class Application implements JsonSerializable
      * @throws \Quadro\Exception
      */
     #[NoReturn]
-    public function exceptionHandler( Throwable $thrown ): void
+    public function exceptionHandler(Throwable $thrown ): void
     {
-       // if ($this->getEnvironment() !== Application::ENV_PRODUCTION) {
-            //if ($thrown instanceof \Exception) {
-                $this->getResponse()->setBody(
-                    sprintf('%s: %s - %s (%s @ %d)',
-                        $thrown::class,
-                        $thrown->getCode(),
-                        $thrown->getMessage(),
-                        $thrown->getFile(),
-                        $thrown->getLine()
-                    )
-                );
-            //} else {
-            //    $this->getResponse()->setBody( 'An Error has occurred' );
-            //}
-        //} else {
-        //    $this->getResponse()->setBody( 'An Error has occurred' );
-        //}
+        if ($this->debug()) {
+            $this->getResponse()->setContent($thrown);
+        } else {
+            $this->getResponse()->setContent(
+                sprintf('%s: %s - %s',
+                    $thrown::class,
+                    $thrown->getCode(),
+                    $thrown->getMessage()
+                )
+            );
+        }
         $this->getResponse()->setStatusCode($thrown->getCode());
         $this->getResponse()->send();
     }
@@ -547,7 +547,7 @@ class Application implements JsonSerializable
     public function errorHandler( int $number, string $message, string $file=null, int $line = null): void
     {
         if ($this->getEnvironment() !== Application::ENV_PRODUCTION ) {
-            $this->getResponse()->setBody(
+            $this->getResponse()->setContent(
                 sprintf('ERROR : %s - %s (%s @ %d)',
                    $number,
                    $message,
@@ -577,7 +577,6 @@ class Application implements JsonSerializable
         try {
             $this->notifyObservers(self::EVENT_BEFORE_DISPATCH, $this->getRequest());
 
-
             // Dispatch the request.
             // First Loop through custom dispatchers to handle the request.
             // Dispatchers are treated on a first in first out bases
@@ -604,11 +603,10 @@ class Application implements JsonSerializable
             } else if(is_object($response) && $response instanceof IResponse) {
                 $this->notifyObservers(self::EVENT_BEFORE_SEND, $response);
                 $response->send();
-                exit(1);
 
             // c) We receive some data, add this to the default response object
             } else {
-                $this->getResponse()->setBody($response);
+                $this->getResponse()->setContent($response);
                 //print_r($this->getResponse());
                 //exit("Default Response ...");
             }
@@ -620,7 +618,7 @@ class Application implements JsonSerializable
             // Add the exception to default respond object
             $this->notifyObservers(self::EVENT_DISPATCHER_EXCEPTION, $e);
             $this->getResponse()->setStatusCode($e->getCode());
-            $this->getResponse()->setBody($e);
+            $this->getResponse()->setContent($e);
         }
 
         // Call send on the default response object. Either filled with data(c) or with the
@@ -640,13 +638,11 @@ class Application implements JsonSerializable
     #[NoReturn]
     public static function handleRequest():bool
     {
-        Application::init();
         return self::getInstance()->run();
     }
 
-    public static function init(string $applicationPath = ''): void
+    protected static function _init(string $applicationPath = ''): void
     {
-
         if (defined('QUADRO_DIR')) return;
 
         /**
@@ -659,12 +655,13 @@ class Application implements JsonSerializable
             } else {
                 $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1);
                 if (isset($backtrace[0]) && isset($backtrace[0]['file'])) {
-                    define('QUADRO_DIR_APPLICATION', dirname($backtrace[0]['file']) . DIRECTORY_SEPARATOR);
+                    if (dirname($backtrace[0]['file']) != __DIR__) {
+                        define('QUADRO_DIR_APPLICATION', dirname($backtrace[0]['file']) . DIRECTORY_SEPARATOR);
+                    }
                 }
                 if (!defined('QUADRO_DIR_APPLICATION')) {
-                    exit('Quadro Initialization Error: Can not find a valid application path');
+                    exit('Quadro Initialization Error: Can not find a valid application path. Use define("QUADRO_DIR_APPLICATION", "/application/path")');
                 }
-
             }
         }
 
@@ -682,8 +679,8 @@ class Application implements JsonSerializable
          */
         define(
             'QUADRO_DIR',
-            realpath(__DIR__ . DS . '..' . DS . '..' . DS)  .DS);
-        ;
+            realpath(__DIR__ . DS . '..' . DS . '..' . DS)  .DS
+        );
 
         /**
          * The Application directory must not be the same as this directory
@@ -720,7 +717,6 @@ class Application implements JsonSerializable
 
         /**
          * Autoload stuff.
-         * NOTE the library are loaded as wel as defined in the composer.json
          */
         if (is_file(QUADRO_DIR .'vendor'.DS.'autoload.php')) {
             require_once QUADRO_DIR . 'vendor' . DS . 'autoload.php';
@@ -732,13 +728,21 @@ class Application implements JsonSerializable
 
     /**
      * @see https://www.php.net/manual/en/jsonserializable.jsonserialize.php
+     * @throws Config\Exception
      */
-    #[ArrayShape(['environment' => "string", 'starttime' => "float", 'registry' => "\Quadro\Application\Registry"])]
+    #[ArrayShape(
+        ['environment' => "string",
+            'startTime' => "float",
+            'registry' => "\Quadro\Application\Registry",
+            'request' => "string",
+            'config' => "\Quadro\Config",
+        ]
+    )]
     public function jsonSerialize(): array
     {
         return [
             'environment' => $this->getEnvironment(),
-            'starttime' => $this->getStartTime(),
+            'startTime' => $this->getStartTime(),
             'registry' => $this->getRegistry(),
             'request' => $this->getRequest(),
             'config' => $this->getConfig(),
@@ -795,7 +799,8 @@ class Application implements JsonSerializable
     protected function notifyObservers(string $event, mixed $context = null):void
     {
         foreach($this->_observers as $observer) {
-           if (count($this->_observersEvents[spl_object_hash($observer)])) {
+
+           if ( count($this->_observersEvents[spl_object_hash($observer)])) {
                 if (isset($this->_observersEvents[spl_object_hash($observer)][$event])) {
                     $observer->onEvent($event, $context);
                 }
@@ -805,6 +810,21 @@ class Application implements JsonSerializable
         }
     }
 
+
+    /**
+     * Returns the schema and domain for the current application
+     *
+     * Examples:
+     *   https://www.example.com
+     *   http://localhost:8080
+     *
+     * @return string
+     * @throws Config\Exception
+     */
+    public function getUrlRoot(): string
+    {
+        return strtolower($this->getRequest()->getScheme() ). '://' .  $this->getRequest()->getHost();
+    }
 
 
 } // class

@@ -171,13 +171,19 @@ class Request extends Component implements RequestInterface, JsonSerializable
 
     /**
      * @return string The path of the request
+     * @throws Exception
      */
     public function getPath(): string
     {
         if (!isset($this->_path)) {
             if (array_key_exists('REQUEST_URI', $_SERVER)
                 && isset($_SERVER['REQUEST_URI'])) {
-                $this->_path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+                $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+                if (false === $path){
+                   throw new Exception('Not found', 404);
+                } else {
+                    $this->_path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+                }
             }
         }
         return $this->_path;
@@ -289,21 +295,21 @@ class Request extends Component implements RequestInterface, JsonSerializable
      * We need store the read raw body because it can't be read again
      * @var string
      */
-    protected string $rawBody;
+    protected string $_rawBody;
 
     /**
      * Gets HTTP raw request body
      */
     public function getRawBody(): string
     {
-        if (null === $this->rawBody) {
-            $this->rawBody = file_get_contents("php://input");
+        if (!isset($this->_rawBody)) {
+            $this->_rawBody = file_get_contents("php://input");
         }
-        return $this->rawBody;
+        return $this->_rawBody;
     }
     protected function setRawBody(string $rawBody): self
     {
-        $this->rawBody = $rawBody;
+        $this->_rawBody = $rawBody;
         return $this;
     }
 
@@ -313,27 +319,28 @@ class Request extends Component implements RequestInterface, JsonSerializable
      * @param bool $associative
      * @return stdClass|array|bool
      */
-    public function getRawBodyAsJson(bool $associative = false): stdClass | array | bool
+    public function getRawBodyAsJson(bool $associative = true): stdClass | array | bool
     {
         $rawBody = $this->getRawBody();
         if(gettype($rawBody) != 'string') {
             return false;
         }
-        return json_decode($rawBody, $associative);
+        $json = json_decode($rawBody, $associative);
+        if (!is_array($json)) return false;
+        return $json;
     }
 
     // ---------------------------------------------------------------------------------------------------
 
     public function getSignature(): string
     {
-
         $signature  = $this->getMethod() ;
         $signature .= ' ' . $this->getScheme() . '://';
 
         $signature .= $this->getHost();
-        if($this->getPort() <> 80 ) {
-            $signature .= ':' . $this->getPort();
-        }
+        //if($this->getPort() <> 80 ) {
+        //    $signature .= ':' . $this->getPort();
+        //}
         $signature .= $this->getPath();
         if (!empty($this->getGetData())) {
             $signature .= '?' . http_build_query($this->getGetData());

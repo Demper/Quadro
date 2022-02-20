@@ -20,118 +20,266 @@ namespace Quadro\Authentication;
 
 use Quadro\Application;
 use Quadro\Authentication;
+use Quadro\Authentication\Exception as Exception;
 use Quadro\Config as Config;
-use DateTimeImmutable;
-use \Firebase\JWT\JWT as FireBaseJwt;
+use Quadro\Helpers\Text;
+use Quadro\Http\Request as Request;
+use Quadro\Http\Response\EnumLinkRelations as Link;
 
 class Jwt extends Authentication
 {
 
-
-    protected string $_secretKey;
-    public function getSecretKey(): string
+    protected string $_secret;
+    public function getSecret(): string
     {
-        if (!isset($this->_secretKey)) {
-            $config = Application::getInstance()->getComponent(Config::getComponentName());
-            $this->_secretKey = $config->getOption('authentication.jwt.secretKey', 'DefaultSecretKeyPleaseChange!');
+        if(!isset($this->_secret)) {
+            $this->_secret = Application::getInstance()->getConfig()->getOption('authentication.secret', 'Humpty Dumpty Set On A Wall');
         }
-        return $this->_secretKey;
+        return $this->_secret;
     }
-    public function setSecretKey(string $secretKey): self
+    public function setSecret(string $secret): self
     {
-        $this->_secretKey = $secretKey;
+        $this->_secret = $secret;
         return $this;
     }
 
-
-
-    protected DateTimeImmutable $_issuedAt;
-    public function getIssuedAt(): DateTimeImmutable
+    protected string $_fileName;
+    public function getFileName(): string
     {
-        if(!isset($this->_issuedAt)) {
-            $this->_issuedAt  = new DateTimeImmutable();
+        if(!isset($this->_fileName)) {
+            $this->_fileName = Application::getInstance()->getConfig()->getOption('authentication.filename', 'users.csv');
         }
-        return $this->_issuedAt;
+        return $this->_fileName;
     }
-
-
-
-    protected string $_expirePeriod;
-    public function getExpirePeriod(): string
+    public function setFileName(string $fileName): self
     {
-        if(!isset($this->_expirePeriod)) {
-            $config = Application::getInstance()->getComponent(Config::getComponentName());
-            $this->_expirePeriod = $config->getOption('authentication.jwt.expire', '+6 minutes');
-        }
-        return $this->_expirePeriod;
-    }
-    public function setExpirePeriod(string $expirePeriod): self
-    {
-        $this->_expirePeriod = $expirePeriod;
+        $this->_fileName = $fileName;
         return $this;
     }
 
-
-
-    protected int $_expire;
-    public function getExpire(): int
+    protected string $_publicFieldName;
+    public function getPublicFieldName(): string
     {
-        if (!isset($this->_expire)) {
-            $this->_expire = $this->getIssuedAt()->modify($this->getExpirePeriod())->getTimestamp();
+        if(!isset($this->_publicFieldName)) {
+            $this->_publicFieldName = Application::getInstance()->getConfig()->getOption('authentication.publicFieldName', 'email');
         }
-        return $this->_expire;
+        return $this->_publicFieldName;
+    }
+    public function setPublicFieldName(string $publicFieldName): self
+    {
+        $this->_publicFieldName = $publicFieldName;
+        return $this;
     }
 
+    // -----------------------------------------------------------------------------
 
-
-    protected string $serverName;
-    public function getServerName(): string
+    /**
+     * @throws Config\Exception
+     * @throws \Quadro\Exception
+     * @throws \Quadro\Authentication\Exception
+     */
+    public function onEvent(string $event, mixed $context = null): void
     {
-        return $this->serverName ?? $_SERVER['SERVER_NAME'] ?? 'localhost';
-    }
+        if ($event === Application::EVENT_BEFORE_DISPATCH) {
 
+            // shortcut to the singleton instance
+            $app = Application::getInstance();
 
+            // sign-up and sign-in are always allowed
+            if ( $app->getRequest()->getPath() !== $this->getAuthenticateUri() &&
+                 $app->getRequest()->getPath() !== $this->getRegisterUri()
+            ) {
 
-    public function authenticate(string $publicPhrase, string $privatePhrase): bool|string
-    {
-        $data = [
-            'iat'  => $this->getIssuedAt()->getTimestamp(),         // Issued at: time when the token was generated
-            'iss'  => $this->getServerName(),                       // Issuer
-            'nbf'  => $this->getIssuedAt()->getTimestamp(),         // Not before
-            'exp'  => $this->getExpire(),                           // Expire
-            'userName' => null,                                     // User name
-        ];
+                // get the JWT in the header if any, defaults to an empty string
+                $jwt = '';
+                $header = explode(' ',$app->getRequest()->getHeaders('Authorization'));
+                if (count($header) == 2 && $header[0] == 'Bearer') {
+                    $jwt = $header[1];
+                }
 
-        if (Application::getInstance()->getEnvironment() === Application::ENV_DEVELOPMENT) {
-            if ($publicPhrase == 'bogus@localhost.com' && $privatePhrase == hash('sha256', 'administrator')){
-                $data['userName'] = 'QUADRO-DEVELOPER';
+                // validate the jwt
+                if (!$this->jwtIsValid($jwt)) {
+                    $app->getResponse()
+                        ->addLink(
+                            Link::Next,
+                            $app->getUrlRoot() . $this->getRegisterUri(),
+                            Request::METHOD_POST
+                        )
+                        ->addLink(
+                            Link::Next,
+                            $app->getUrlRoot() . $this->getAuthenticateUri(),
+                            Request::METHOD_POST
+                        );
+                    throw new Exception($context . ' is unauthorized', 401);
+                }
+
+                // TODO if we have a valid JWT check ACL
             }
-        } else {
-            // todo get the username from the database of things
-
         }
-
-        if(null ==  $data['userName']) return false;
-
-        return FireBaseJwt::encode(
-            $data,
-            $this->getSecretKey(),
-            'HS512'
-        );
     }
 
+    // -----------------------------------------------------------------------------
 
+    public function _authenticate(array $credentials): bool|string
+    {
+        $login = false;
+        if (is_file(QUADRO_DIR_APPLICATION . $this->getFileName())) {
+            $fileHandle = fopen(QUADRO_DIR_APPLICATION . $this->getFileName(), 'a+');
+            while (($userData = fgetcsv($fileHandle, 1000, ",")) !== FALSE) {
+                if ($userData[0] == $credentials['email']) {
+                    if ($userData[2] ==  hash_hmac(
+                        'SHA256',
+                        $credentials['pass'],
+                        $credentials['email'] . $_SERVER['REMOTE_ADDR'] . $this->getSecret()
+                    )) {
+                        $login = $this->jwtCreate($userData[0]);
+                        break;
+                    };
+                }
+            }
+            fclose($fileHandle);
+        }
 
-    /**
-     * Reset waiting period after multiple log in attempts
-     */
-    public static int $nrOfLoginThrottlePeriod = 60 * 60 * 10; // 10 minutes
+        return $login;
+    }
 
-    /**
-     * Attempts before throttling is started
-     */
-    public static int $nrOfFreeLoginAttempts = 3;
+    // -----------------------------------------------------------------------------
 
+    public function jwtCreate(array|string $data): string
+    {
+        $headers = [
+            'alg' => 'HS256',
+            'type' => 'JWT',
+        ];
+        $issuedAt = time();
+        $payload = [
+            'data' => $data,
+            'iat' => $issuedAt,
+            'exp' => $issuedAt + (60 * 60 * 24) // 24 hours
+        ];
+        $headersEncoded = Text::base64UrlEncode(json_encode($headers));
+        $payloadEncoded = Text::base64UrlEncode(json_encode($payload));
+        $signature = hash_hmac(
+            'SHA256',
+            "{$headersEncoded}.{$payloadEncoded}",
+            $_SERVER['REMOTE_ADDR'] . $this->getSecret(),
+            true
+        );
+        $signatureEncoded = Text::base64UrlEncode($signature);
+
+        return "{$headersEncoded}.{$payloadEncoded}.{$signatureEncoded}";
+    }
+
+    public function jwtIsValid(string $jwt): bool
+    {
+        $tokenParts = explode('.', $jwt);
+        $headers = json_decode(base64_decode($tokenParts[0]), true);
+        $payload = json_decode(base64_decode($tokenParts[1]), true);
+        $signatureProvided = $tokenParts[2];
+
+        // check expiration
+        if(!isset($payload['exp'])) return false;
+        if (($payload['exp'] - time()) < 0) return false;
+
+        // check signature
+        $headersEncoded = Text::base64UrlEncode(json_encode($headers));
+        $payloadEncoded = Text::base64UrlEncode(json_encode($payload));
+        $signature = hash_hmac(
+            'SHA256',
+            "{$headersEncoded}.{$payloadEncoded}",
+            $_SERVER['REMOTE_ADDR'] . $this->getSecret(),
+            true
+        );
+        $signatureEncoded = Text::base64UrlEncode($signature);
+        if ($signatureEncoded !== $signatureProvided) return false;
+
+        return true;
+    }
+
+    // -----------------------------------------------------------------------------
+    //  registration and authentication hooks
+    // -----------------------------------------------------------------------------
+
+    protected function _exceedsMaxLoginAttempts(): bool
+    {
+        // For now, we allow all
+        return false;
+    }
+
+    protected function _exceedsMaxRegisterAttempts(): bool
+    {
+        // For now, we allow all
+        return false;
+    }
+
+    protected function _getCredentials(array &$credentials): bool
+    {
+        $request = Application::getInstance()->getRequest();
+        $postData = $request->getRawBody();
+        $success = false;
+        if ($request->getMethod() === $request::METHOD_POST) {
+            if (false  !== ($data = json_decode($postData, true)) ){
+                $credentials['email'] = $data['email']??'';
+                $credentials['pass'] = $data['pass']??'';
+                $success = true;
+            }
+        }
+        return $success;
+    }
+
+    protected function _meetRequirements(array &$credentials): bool
+    {
+        $credentials['email'] = filter_var($credentials['email'] , FILTER_SANITIZE_EMAIL);
+        $credentials['email'] = filter_var($credentials['email'] , FILTER_VALIDATE_EMAIL);
+        $credentials['pass']  = (strlen($credentials['pass']) < 8 ) ? false : $credentials['pass'];
+        return ! ($credentials['email'] === false || $credentials['pass'] === false);
+    }
+
+    protected function _isUnique(array $credentials): bool
+    {
+        $unique = true;
+        if (is_writable(QUADRO_DIR_APPLICATION)) {
+            $fileHandle = fopen(QUADRO_DIR_APPLICATION . $this->getFileName(), 'a+');
+            while (($userData = fgetcsv($fileHandle, 1000, ",")) !== FALSE) {
+                if ($userData[0] == $credentials['email']) {
+                    $unique = false;
+                    break;
+                }
+            }
+            fclose($fileHandle);
+        }
+        return $unique;
+    }
+
+    protected function _register(array $credentials): bool|array
+    {
+        if (!is_writable(QUADRO_DIR_APPLICATION)) {
+            return false;
+        }
+        $credentials['pass'] =  hash_hmac(
+            'SHA256',
+            $credentials['pass'],
+            $credentials['email'] . $_SERVER['REMOTE_ADDR'] . $this->getSecret()
+        );
+        $fileHandle = fopen(QUADRO_DIR_APPLICATION . $this->getFileName(), 'a+');
+        if (false === fwrite($fileHandle, "{$credentials['email']},0,{$credentials['pass']}\n" )) return false;
+        if ( false === fclose($fileHandle)) return false;
+        return ['jwt' => $this->jwtCreate($credentials['email'])];
+    }
 
 
 }
+
+
+
+
+/**
+ * Reset waiting period after multiple log in attempts
+ * /
+public static int $_nrOfLoginThrottlePeriod = 60 * 60 * 10; // 10 minutes
+
+/**
+ * Attempts before throttling is started
+ * /
+public static int $_nrOfFreeLoginAttempts = 3;
+ */

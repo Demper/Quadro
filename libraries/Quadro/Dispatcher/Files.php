@@ -163,12 +163,12 @@ class Files extends BaseDispatcher
             // empty slug as the first item. We do not need that so remove the first item
             array_shift($slugs);
 
-            // empty items are not welkom either
-            if (in_array('', $slugs)) {
-                if ($this->getVerbose())
-                    $response->addMessage(__METHOD__ . " EMPTY SLUGS = " . implode(' > ', array_reverse($slugs)));
-                return false;
-            }
+//            // empty items are not welcome either
+//            if (in_array('', $slugs)) {
+//                if ($this->getVerbose())
+//                    $response->addMessage(__METHOD__ . " EMPTY SLUGS = " . implode(' > ', array_reverse($slugs)));
+//                return false;
+//            }
             if ($this->getVerbose())
                 $response->addMessage(__METHOD__ . " SLUGS = " . implode(' > ', array_reverse($slugs)));
 

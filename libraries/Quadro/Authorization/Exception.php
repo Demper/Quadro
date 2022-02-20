@@ -16,13 +16,16 @@
  */
 declare(strict_types=1);
 
-namespace Quadro;
+namespace Quadro\Authorization;
 
-use Quadro\Authentication\EnumRegisterErrors;
+use Quadro\Exception as BaseException;
 
-interface AuthenticationInterface
+/**
+ * The base Exception class for the Quadro\Authorization namespace
+ *
+ * @package Quadro\Authorization
+ */
+class Exception extends BaseException
 {
-    public function authenticate(array $credentials = [] ): bool|string;
-    public function register(array $credentials = [] ): EnumRegisterErrors|array;
 
 }

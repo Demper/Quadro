@@ -19,22 +19,33 @@ declare(strict_types=1);
 namespace Quadro;
 
 use Quadro\Application as Application;
+use Quadro\Authentication\EnumRegisterErrors;
+use Quadro\Http\Request as Request;
 use Quadro\Application\ComponentInterface;
 use Quadro\Config as Config;
 use Quadro\Application\ObserverInterface;
 use Quadro\Authentication\Exception as Exception;
+use Quadro\Http\Response\EnumLinkRelations as Link;
+
+use \Firebase\JWT\JWT;
+
 
 /**
  * Handles JWT authentication
  */
-class Authentication implements ComponentInterface, ObserverInterface, AuthenticationInterface
+abstract class Authentication implements ComponentInterface, ObserverInterface, AuthenticationInterface
 {
+
+    public function __construct()
+    {
+        Application::getInstance()->attachObserver($this);
+    }
 
     protected string $_authenticateUri;
     public function getAuthenticateUri(): string
     {
         if(!isset($this->_authenticateUri)) {
-            $this->_authenticateUri = Application::getInstance()->getConfig()->getOption('authentication.authenticateUri', '/authenticate');
+            $this->_authenticateUri = Application::getInstance()->getConfig()->getOption('authentication.authenticateUri', '/accounts/authenticate');
         }
         return $this->_authenticateUri;
     }
@@ -44,63 +55,78 @@ class Authentication implements ComponentInterface, ObserverInterface, Authentic
         return $this;
     }
 
-
-
+    protected string $_registerUri;
+    public function getRegisterUri(): string
+    {
+        if(!isset($this->_registerUri)) {
+            $this->_registerUri = Application::getInstance()->getConfig()->getOption('authentication.registerUri', '/accounts/register');
+        }
+        return $this->_registerUri;
+    }
+    public function setRegisterUri(string $registerUri): self
+    {
+        $this->_registerUri = $registerUri;
+        return $this;
+    }
 
     /**
-     * Receives application events
-     *
-     * @param string $event
-     * @param mixed|null $context
-     * @throws Application\RegistryException
-     * @throws Config\Exception
-     * @throws Exception
-     * @throws \Quadro\Exception
+     * @param array $credentials
+     * @return EnumRegisterErrors|array Error or array with newly registered user info
      */
-    public function onEvent(string $event, mixed $context = null): void
+    final public function register(array $credentials = [] ): EnumRegisterErrors|array
     {
-        if ($event === Application::EVENT_BEFORE_HANDLE_REQUEST) {
-            if (Application::getInstance()->getRequest()->getPath() !== $this->getAuthenticateUri()) {
-                if (!$this->validateAccessToken()) {
-                    $objResponse = Application::getInstance()->getResponse();
-                    $objResponse->addMessage("Event = $event");
-                    $objResponse->addMessage("Context = $context");
-                    $objResponse->addMessage("No Valid AccessToken");
-                    $objResponse->addLink(
-                        'authentication',
-                        $this->getAuthenticateUri(),
-                        \Quadro\Http\Request::METHOD_POST
-                    );
-                    throw new Exception($context . ' is unauthorized', 401);
-                }
+        if ($this->_exceedsMaxRegisterAttempts()) {
+            return EnumRegisterErrors::ExceedsMaxAttempts;
+        }
+
+        if (count($credentials) < 2){
+            if( !$this->_getCredentials($credentials)) {
+                return EnumRegisterErrors::NoCredentials;
             }
         }
+
+        if (!$this->_meetRequirements($credentials)) {
+            return EnumRegisterErrors::CredentialsDoesNotMeetRequirements;
+        }
+
+        if (!$this->_isUnique($credentials)) {
+            return EnumRegisterErrors::NotUnique;
+        }
+
+        if (false === ($user = $this->_register($credentials))) {
+            return EnumRegisterErrors::Unexpected;
+        }
+
+        return $user;
     }
 
-
-
-    public function authenticate(string $publicPhrase, string $privatePhrase): bool|string
+    /**
+     * @param array $credentials
+     * @return bool|string
+     */
+    final public function authenticate(array $credentials = [] ): bool|string
     {
-        if (Application::getInstance()->getEnvironment() === Application::ENV_DEVELOPMENT) {
-            if ($publicPhrase == 'bogus@localhost.com' && $privatePhrase == hash('sha256', 'administrator')){
-                return 'QUADRO-DEVELOPER';
+        if ($this->_exceedsMaxLoginAttempts()) {
+            return false;
+        }
+
+        if (count($credentials) < 2){
+            if( !$this->_getCredentials($credentials)) {
+                return false;
             }
         }
-        return false;
+
+        return $this->_authenticate($credentials);
     }
 
-
-
-    public function validateAccessToken(): bool
-    {
-        if (Application::getInstance()->getEnvironment() === Application::ENV_DEVELOPMENT) {
-            return true;
-            return (Application::getInstance()->getRequest()->getHeaders('Authorization') == 'QUADRO-DEVELOPER');
-        }
-        return false;
-    }
-
-
+    // register and authentication hooks
+    abstract protected function _exceedsMaxRegisterAttempts(): bool;
+    abstract protected function _exceedsMaxLoginAttempts(): bool;
+    abstract protected function _getCredentials(array &$credentials): bool;
+    abstract protected function _meetRequirements(array &$credentials): bool;
+    abstract protected function _isUnique(array $credentials): bool;
+    abstract protected function _register(array $credentials): bool|array;
+    abstract protected function _authenticate(array $credentials): bool|string;
 
     /**
      * @return string

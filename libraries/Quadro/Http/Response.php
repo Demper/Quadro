@@ -22,6 +22,7 @@ use JetBrains\PhpStorm\NoReturn;
 use JetBrains\PhpStorm\Pure;
 use Quadro\Application as Application;
 use Quadro\Application\Component as Component;
+use Quadro\Http\Response\EnumLinkRelations as EnumLinkRelations;
 use Quadro\Http\ResponseInterface as IResponse;
 
 /**
@@ -45,25 +46,31 @@ class Response extends Component implements IResponse
     /**
      * @var int HTTP status code
      */
-    private int $statusCode = 200;
+    private int $_statusCode = 200;
 
     /**
      * @var string HTTP status text
      */
-    private string $statusText = 'Ok';
+    private string $_statusText = 'Ok';
 
     /**
      * When not a valid code the status code isset to 500. The statusText is
      * set aas well.
      *
-     * @param int $statusCode
-     * @return $this
+     * @see https://restfulapi.net/http-status-codes/
+     * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
+     * @param int $code
+     * @return Response
      */
-    public function setStatusCode(int $statusCode): static
+    public function setStatusCode(int $code): static
     {
-        switch ($statusCode) {
+        switch ($code) {
+            // Information responses
             case 100: $text = 'Continue'; break;
             case 101: $text = 'Switching Protocols'; break;
+            case 103: $text = 'Early Hints'; break;
+
+            // Successful responses
             case 200: $text = 'OK'; break;
             case 201: $text = 'Created'; break;
             case 202: $text = 'Accepted'; break;
@@ -71,12 +78,17 @@ class Response extends Component implements IResponse
             case 204: $text = 'No Content'; break;
             case 205: $text = 'Reset Content'; break;
             case 206: $text = 'Partial Content'; break;
+
+            // Redirection messages
             case 300: $text = 'Multiple Choices'; break;
             case 301: $text = 'Moved Permanently'; break;
             case 302: $text = 'Moved Temporarily'; break;
             case 303: $text = 'See Other'; break;
             case 304: $text = 'Not Modified'; break;
-            case 305: $text = 'Use Proxy'; break;
+            case 307: $text = 'Temporary Redirect'; break;
+            case 308: $text = 'Permanent Redirect'; break;
+
+            // Client error responses
             case 400: $text = 'Bad Request'; break;
             case 401: $text = 'Unauthorized'; break;
             case 402: $text = 'Payment Required'; break;
@@ -93,19 +105,34 @@ class Response extends Component implements IResponse
             case 413: $text = 'Request Entity Too Large'; break;
             case 414: $text = 'Request-URI Too Large'; break;
             case 415: $text = 'Unsupported Media Type'; break;
+            case 416: $text = 'Range not Satisfiable'; break;
+            case 417: $text = 'Expectation Failed'; break;
+            case 418: $text = 'I\'m a Teapot'; break;
+            case 422: $text = 'Unprocessable Entity'; break;
+            case 425: $text = 'To Early'; break;
+            case 426: $text = 'Upgrade Required'; break;
+            case 428: $text = 'Precondition Required'; break;
+            case 429: $text = 'Too Many Request'; break;
+            case 431: $text = 'Request Header Fields Too Large'; break;
+            case 451: $text = 'Unavailable For Legal reasons'; break;
+
+            // Server error responses
             case 501: $text = 'Not Implemented'; break;
             case 502: $text = 'Bad Gateway'; break;
             case 503: $text = 'Service Unavailable'; break;
             case 504: $text = 'Gateway Time-out'; break;
             case 505: $text = 'HTTP Version not supported'; break;
+            case 506: $text = 'Variant Also Negotiates'; break;
+            case 507: $text = 'Insufficient Storage'; break;
+
             case 500:
             default:
                 $text = 'Internal Server Error';
-                $statusCode = 500;
+                $code = 500;
                 break;
         }
-        $this->statusCode = $statusCode;
-        $this->statusText = $text;
+        $this->_statusCode = $code;
+        $this->setStatusText($text);
         return $this;
     }
 
@@ -114,18 +141,18 @@ class Response extends Component implements IResponse
      */
     public function getStatusCode(): int
     {
-        return $this->statusCode;
+        return $this->_statusCode;
     }
 
     /**
      * Sets the HTTP status text
      *
-     * @param string $statusText
+     * @param string $text
      * @return static
      */
-    public function setStatusText(string $statusText): static
+    public function setStatusText(string $text): static
     {
-        $this->statusText = $statusText;
+        $this->_statusText = $text;
         return $this;
     }
 
@@ -134,7 +161,7 @@ class Response extends Component implements IResponse
      */
     public function getStatusText(): string
     {
-        return $this->statusText;
+        return $this->_statusText;
     }
 
     /**
@@ -145,22 +172,76 @@ class Response extends Component implements IResponse
     {
         $protocol = ($_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.0');
         return $protocol . ' ' . $this->getStatusCode() . ' ' . $this->getStatusText();
-
     }
 
     // -----------------------------------------------------------------------------
 
+    /**
+     * Cache for storing the links for this resource
+     * @var array
+     */
+    protected array $links = [];
 
+    /**
+     * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link
+     * @param EnumLinkRelations $rel
+     * @param string $href
+     * @param string $method
+     * @param string $type
+     * @return Response
+     */
+    public function addLink(EnumLinkRelations $rel, string $href, string $method = 'GET', string $type = 'application/json'): Response
+    {
+        $this->links[] = ['href' => $href, 'rel' => $rel->value, 'type' => $type, 'method' => $method];
+        $linkHeader = '';
+        foreach($this->links as $link) {
+            $linkHeader .= ($linkHeader  == '') ? ''  : ',';
+            $linkHeader .= "<{$link['href']}>; rel={$link['rel']}; type={$link['type']}";
+        }
+        $this->setHeader('Link:' . $linkHeader);
+        return $this;
+    }
+
+    /**
+     * Returns all links for this response
+     * @return array
+     */
+    public function getLinks(): array
+    {
+        return $this->links;
+    }
+
+    // -----------------------------------------------------------------------------
+
+    /**
+     * Add this header to the headers to be sent
+     *
+     * @param string $header
+     * @param bool $replace
+     * @param int $response_code
+     * @return void
+     */
     public function setHeader(string $header, bool $replace = true, int $response_code = 0): void
     {
         header($header, $replace, $response_code);
     }
 
+    /**
+     * Removes header from the headers to be sent
+     *
+     * @param string $headerName
+     * @return void
+     */
     public function headerRemove(string $headerName)
     {
         header_remove($headerName);
     }
 
+    /**
+     * Returns the headers to be sent
+     *
+     * @return array
+     */
     public function getHeaders(): array
     {
         return headers_list();
@@ -168,49 +249,67 @@ class Response extends Component implements IResponse
 
     // ------------------------------------------------------
 
-    protected string $_body = "";
-    public function getBody(): string
+    /**
+     * @var string $_content the content for the response
+     */
+    protected string $_content = "";
+
+    /**
+     * Returns the content of the response
+     * @return string
+     */
+    public function getContent(): string
     {
-        return (string) $this->_body;
+        return  $this->_content;
     }
-    public function setBody(mixed $body, bool $append = false): self
+
+    /**
+     * Sets the content of the Response
+     *
+     * @param mixed $content
+     * @param bool $append
+     * @return $this
+     */
+    public function setContent(mixed $content, bool $append = false): self
     {
         if ($append ) {
-            $this->_body .= (string) $body;
+            $this->_content .= (string) $content;
         }  else {
-            $this->_body = (string) $body;
+            $this->_content = (string) $content;
         }
         return $this;
     }
 
+    // ------------------------------------------------------
 
     /**
-     * Sends all the information in the object and closes(exit) the request
+     * Sends the content and closes(exit) the request
+     *
+     * @throws \Quadro\Config\Exception
      */
     #[NoReturn]
     public function send(): void
     {
-        $content =  $this->getBody();
+        $content =  $this->getContent();
 
         if (headers_sent())  {
-            // TODO add environment condition, we do not want this in production!!
-            echo PHP_EOL, 'UNEXPECTED QUADRO HEADERS SEND ERROR!!!' . PHP_EOL;
-            echo PHP_EOL .  $content. PHP_EOL. PHP_EOL;
-            foreach(debug_backtrace() as $index => $trace) {
-                echo str_pad((string) $index, 3, ' ', STR_PAD_LEFT)  . ' ' .
-                    str_pad((string) $trace['line'], 4, ' ', STR_PAD_LEFT)  . ' ' .
-                    $trace['file'] .  PHP_EOL;
+            if (Application::getInstance()->debug()) {
+                echo PHP_EOL, 'UNEXPECTED QUADRO HEADERS SEND ERROR!!!' . PHP_EOL;
+                echo PHP_EOL . $content . PHP_EOL . PHP_EOL;
+                foreach (debug_backtrace() as $index => $trace) {
+                    echo str_pad((string)$index, 3, ' ', STR_PAD_LEFT) . ' ' .
+                        str_pad((string)$trace['line'], 4, ' ', STR_PAD_LEFT) . ' ' .
+                        $trace['file'] . PHP_EOL;
+                }
+                exit(1);
             }
-            exit(1);
         }
 
         $this->setHeader('Content-Length: ' . strlen($content));
         $this->setHeader($this->getStatus(), true, $this->getStatusCode());
-
         echo $content;
         exit(0);
     }
-
 
 
 

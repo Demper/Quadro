@@ -16,20 +16,12 @@
  */
 declare(strict_types=1);
 
-// get the publicPhrase and secretPhrase from the request object
+// Get the publicPhrase and secretPhrase from the request object
 // This should be present in the raw body as a json string.
+if (false === ($object = Quadro\Application::request()->getRawBodyAsJson()))
+{
+    Quadro\Application::response()->setStatusCode(422);
+    Quadro\Application::response()->addMessage('Expected {\'email\': \'\', \'password\': \'\'}');
+};
 
-$object = Quadro\Request::getInstance()->getRawBodyAsJson();
-
-// for testing purpose we get them from the query and create the json our self
-//
-$jsonString = '{"public": "'.$_GET['public'].'", "secret": "'.$_GET['secret'].'"}';
-$object = json_decode($jsonString);
-
-
-// validate and sanitize incoming data
-
-
-
-
-return json_decode($jsonString);
+return null;

@@ -16,6 +16,9 @@ $request = $app->getRequest();
 /**
  * var \Quadro\Resource\Text $translator Resource Component
  */
+if (!$app->getRegistry()->has(TextResource::getComponentName())) {
+    $app->addComponent(new TextResource);
+}
 $translator = $app->getRegistry()->get(TextResource::getComponentName());
 
 /**
@@ -24,7 +27,18 @@ $translator = $app->getRegistry()->get(TextResource::getComponentName());
 $slugs = $request->getSlugs();
 $language = $slugs[1] ?? null;
 $collection = $slugs[2] ?? null;
-$text = $slugs[3] ?? null;
+
+// TODO DOUBLE CHECK
+$text = (isset($_GET['t']))
+    ? filter_var($_GET['t'], FILTER_UNSAFE_RAW)
+    : null;
+$params = (isset($_GET['p']))
+    ?  filter_var($_GET['p'], FILTER_UNSAFE_RAW)
+    : null;
+$separator = (isset($_GET['s']))
+    ? substr($_GET['s'], 0 , 1)
+    : ';';
+
 $return = [];
 
 // no filter given, get all
@@ -100,12 +114,16 @@ else if (null !== $language && null !== $collection) {
     if (count($return[$language][$collection]) == 0) {
         throw new Exception("Translation(s) not found (language=$language, collection=$collection)", 404);
     }
+
+
+    if (isset($return[$language][$collection][$text])) {
+        if (isset($params)) {
+            $return = vsprintf($return[$language][$collection][$text], explode($separator, $params));
+        } else {
+            $return = $return[$language][$collection][$text];
+        }
+    }
 }
-//
-//else if ( null !== $text) {
-//    $translator->setLanguage($language);
-//    $return = $translator->translate($language, $collection);
-//}
 
 
 return ['translation' => $return ];
