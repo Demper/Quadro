@@ -16,25 +16,16 @@
  */
 declare(strict_types=1);
 
-namespace Quadro\Application;
+namespace Quadro\Application\Registry;
+
+use Quadro\Exception as BaseException;
 
 /**
- * Class Component
- *
- * Components are the building blocks of the Quadro API framework.
+ * The base Exception class for the Quadro\Application\Registry namespace
  *
  * @package Quadro\Application
  */
-abstract class Component implements ComponentInterface
+class Exception extends BaseException
 {
-    /**
-     * @see ComponentInterface::getSingletonName()
-     * @return string
-     */
-    public static function getSingletonName(): string
-    {
-        return static::class;
-    }
-
 
 }

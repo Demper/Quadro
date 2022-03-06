@@ -8,15 +8,15 @@ use Quadro\Authentication\EnumRegisterErrors;
 $app = App::getInstance();
 
 /**
- * If the there is no Authentication Component registered a HTTP 409 Conflict is returned
+ * If there is no Authentication Component registered exit with "HTTP 409 Conflict"
  * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/409.
  */
-if (!$app->hasComponent(Auth::getComponentName())) {
+if (!$app->hasComponent(Auth::getSingletonName())) {
     $app->getResponse()->setContent('Authentication Component not registered');
     $app->getResponse()->setStatusCode(409);
     return null;
 }
-$auth = $app->getComponent(Auth::getComponentName());
+$auth = $app->getComponent(Auth::getSingletonName());
 
 /**
  * You can create a custom Authentication Component implementing the
@@ -45,7 +45,7 @@ if($result instanceof EnumRegisterErrors) {
          * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429
          */
         case EnumRegisterErrors::ExceedsMaxAttempts:
-            $app->getResponse()->setContent('To many attempts for this IP address, please try again later');
+            $app->getResponse()->setContent($result->getMessage());
             $app->getResponse()->setStatusCode(429);
             break;
 
@@ -55,22 +55,21 @@ if($result instanceof EnumRegisterErrors) {
          * @see https://developer.mozilla.org/en-US/docs/web/http/status/400
          */
         case EnumRegisterErrors::NoCredentials: // no break;
-            $app->getResponse()->setContent('Credentials can not be found');
+            $app->getResponse()->setContent($result->getMessage());
             $app->getResponse()->setStatusCode(400);
             break;
 
         case EnumRegisterErrors::CredentialsDoesNotMeetRequirements:
-            $app->getResponse()->setContent('Credentials does not meet our requirements');
+            $app->getResponse()->setContent($result->getMessage());
             $app->getResponse()->setStatusCode(400);
             break;
-
 
         /**
          * A User with the same unique credentials already exists, exit the process
          * with HTTP 409  Conflict
          */
         case EnumRegisterErrors::NotUnique:
-            $app->getResponse()->setContent('A registration with these credentials already exists');
+            $app->getResponse()->setContent($result->getMessage());
             $app->getResponse()->setStatusCode(409);
             break;
 
@@ -78,7 +77,7 @@ if($result instanceof EnumRegisterErrors) {
          * The credentials should be able to save but unexpected errors may occur
          */
         case EnumRegisterErrors::Unexpected:
-            $app->getResponse()->setContent('Unexpected error, could not save Credentials');
+            $app->getResponse()->setContent($result->getMessage());
             $app->getResponse()->setStatusCode(500);
             break;
 
@@ -95,10 +94,10 @@ if($result instanceof EnumRegisterErrors) {
      * When correctly registered the returned information is sent back and this process exits with an HTTP 200 "Ok"
      * The component may optionally send extra information on how to activate/complete the registration
      */
-    $app->getResponse()->setReturnValue($result);
+    $app->getResponse()->setContent($result);
 }
 
-// return response to indicate we already set  the content of the response
+// return response to indicate we already set the content of the response
 return $app->getResponse();
 
 

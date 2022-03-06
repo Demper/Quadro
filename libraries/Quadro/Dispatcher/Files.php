@@ -18,12 +18,9 @@ declare(strict_types=1);
 
 namespace Quadro\Dispatcher;
 
-use Quadro\Dispatcher as BaseDispatcher;
-
-use JetBrains\PhpStorm\ArrayShape;
-use JetBrains\PhpStorm\Pure;
 use Quadro\Application as Application;
-use Quadro\Http\RequestInterface as IRequest;
+use Quadro\Dispatcher as BaseDispatcher;
+use Quadro\RequestInterface as IRequest;
 
 /**
  * The dispatcher takes an url and tries to find a handler for it in the given folders
@@ -52,7 +49,7 @@ class Files extends BaseDispatcher
      * Files Dispatcher constructor.
      * Sets path and verbose properties
      */
-    protected function _initialize_()
+    protected function _initialize_(): void
     {
         if($this->hasOption('path')) {
             $paths = explode(';', $this->getOption('path'));
@@ -66,17 +63,17 @@ class Files extends BaseDispatcher
 
     /**
      * One or more directories to search in for a URI handler
-     * @var array
+     * @var array<string, string> $_path
      */
-    protected array $path = [];
+    protected array $_path = [];
 
     /**
      * Returns all the folders with URI handlers.
-     * @return array
+     * @return array<string, string>
      */
     public function getPath(): array
     {
-        return $this->path;
+        return $this->_path;
     }
 
     /**
@@ -88,11 +85,11 @@ class Files extends BaseDispatcher
     public function addPath(string $path): void
     {
         $path = realpath($path) . Application::DS;
-        if (!isset($this->path[$path])) {
+        if (!isset($this->_path[$path])) {
             if (!file_exists($path)) {
                 throw new Exception(sprintf('Path not found: %s', $path), 500);
             }
-            $this->path[$path] = $path;
+            $this->_path[$path] = $path;
         }
     }
 
@@ -100,9 +97,9 @@ class Files extends BaseDispatcher
 
     /**
      * Whether to add messages to the Response object explaining how the handler is found
-     * @var bool
+     * @var bool  $_verbose
      */
-    protected bool $verbose = false;
+    protected bool $_verbose = false;
 
     /**
      * Sets the Verbose property
@@ -111,7 +108,7 @@ class Files extends BaseDispatcher
      */
     public function setVerbose(bool $verbose): self
     {
-        $this->verbose = $verbose;
+        $this->_verbose = $verbose;
         return $this;
     }
 
@@ -121,7 +118,7 @@ class Files extends BaseDispatcher
      */
     public function getVerbose(): bool
     {
-        return $this->verbose;
+        return $this->_verbose;
     }
 
 
@@ -157,18 +154,11 @@ class Files extends BaseDispatcher
                 $response->addMessage(__METHOD__ . " PATH  = $curPath");
 
             // initialize variables
-            $slugs = explode('/', parse_url($requestUri, PHP_URL_PATH));
+            $slugs = explode('/', (string) parse_url($requestUri, PHP_URL_PATH));
 
             // our slug string starts with a separator (see parse_url). The explode() function will there for always add an
             // empty slug as the first item. We do not need that so remove the first item
             array_shift($slugs);
-
-//            // empty items are not welcome either
-//            if (in_array('', $slugs)) {
-//                if ($this->getVerbose())
-//                    $response->addMessage(__METHOD__ . " EMPTY SLUGS = " . implode(' > ', array_reverse($slugs)));
-//                return false;
-//            }
             if ($this->getVerbose())
                 $response->addMessage(__METHOD__ . " SLUGS = " . implode(' > ', array_reverse($slugs)));
 
@@ -221,10 +211,10 @@ class Files extends BaseDispatcher
         return $result;
     }
 
-
-    #[Pure]
-    #[ArrayShape(['path' => "int[]|string[]"])]
-    public function jsonSerialize(): array
+    /**
+     * @return mixed
+     */
+    public function jsonSerialize(): mixed
     {
         return [
             'path' => array_keys($this->getPath())

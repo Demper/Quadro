@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace Quadro\Http\Response;
+namespace Quadro\Response;
 
 enum EnumLinkRelations: string
 {

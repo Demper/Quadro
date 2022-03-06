@@ -15,9 +15,19 @@
  * @license LICENSE.txt
  */
 declare(strict_types=1);
+header('ContentType: text/plain');
+
+
+$app = Quadro\Application::getInstance();
+$auth9 = $app->getComponent(Quadro\Authorization::getComponentName());
+
+//$auth9->addRules([
+//    new \Quadro\Authorization\Rule( 'test1')
+//]);
+
 
 if (Quadro\Application::getInstance()->getEnvironment() == Quadro\Application::ENV_PRODUCTION) {
-    throw new Quadro\Dispatcher\ForbiddenException('Not available');
+    throw new Quadro\Dispatcher\ForbiddenException('Not availablessss');
 }
 $app = Quadro\Application::getInstance();
 $app->getResponse()->addMessage('Not Implemented yet');

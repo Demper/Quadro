@@ -18,7 +18,9 @@ declare(strict_types=1);
 
 namespace Quadro\Dispatcher;
 
-class ForbiddenException extends Exception
+use Quadro\Exception as BaseException;
+
+class ForbiddenException extends BaseException
 {
     protected $code = 403;
 }

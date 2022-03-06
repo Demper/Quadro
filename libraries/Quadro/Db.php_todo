@@ -30,7 +30,7 @@ use Quadro\Config\OptionsTrait;
  * @package libraries\Quadro
  * @author Rob <rob@jaribio.nl>
  */
-class Db extends Component implements DbInterface
+abstract class Db extends Component implements DbInterface
 {
     
     use OptionsTrait;
@@ -62,10 +62,10 @@ class Db extends Component implements DbInterface
         
     }
 
-    public static function initialize(array $options = []): Db
-    {
-
-    }
+    //public static function initialize(array $options = []): Db
+   // {
+   //     return new Db($options);
+   // }
     
     /**
      * Dispatch all undefined functions to the PDO object
@@ -84,7 +84,7 @@ class Db extends Component implements DbInterface
     /**
      * Dispatch all undefined static functions to the PDO object 
      * 
-     * @param $name $name
+     * @param string $name
      * @param array $arguments
      * @return mixed
      */
@@ -121,41 +121,61 @@ class Db extends Component implements DbInterface
     }
 
 
-
     /**
-     * This is a wrapper for the PDO object standard with PHP. When a sub class 
-     * is defined as the dsn we create an instantce of this sub class. 
-     * 
+     * This is a wrapper for the PDO object standard with PHP. When a sub class
+     * is defined as the dsn we create an instantce of this sub class.
+     *
      * To find the subclass we add a dsn option with the following format:
-     * 
+     *
      *    class:\Namespace\And\Name\Of\The\Class
-     * 
+     *
      * @see https://www.php.net/manual/en/pdo.construct.php
      * @param string $dsn
      * @param array $options
-     * @return static|null
+     * @return static
+     * @throws Config\Exception
+     * @throws Exception
      */
-    public static function factory(string $dsn, array $options=[] ):?self
+    public static function factory(string $dsn, array $options=[] ): static
     {
-        // return NULL if nothing is found
-        $db = null;
-        
         // check for a class as a dsn
         $pattern = '@^class:(.*)@';
         $match = [];
         if (preg_match($pattern, $dsn, $match)){
-            $class = $match[1]; 
-            $db = new $class($options);
-            
-        // otherwise,  add the dsn as an option to the option list
-        // and pass this through to the constructor    
-        } else {
-            $options['dsn'] = $dsn;
-            $db = new self($options);
+            $class = $match[1];
+            return new $class($options);
         }
-        
-        return $db;
+
+        // otherwise, throw Exception
+        throw new Exception('Cannot create Database for ' . $dsn);
     }
 
+
+    /**
+     * @return array
+     */
+    public function errorInfo(): array
+    {
+        return $this->pdo->errorInfo();
+    }
+
+    /**
+     * @param string $sql
+     * @param array<int> $options
+     * @return false|\PDOStatement
+     */
+    public function prepare(string $sql, array $options = []): false|\PDOStatement
+    {
+        return $this->pdo->prepare($sql, $options);
+    }
+
+    /**
+     * @param string|null $name
+     * @return bool|string
+     */
+    public function lastInsertId(string $name = null): bool|string
+    {
+        return $this->pdo->lastInsertId($name);
+    }
 
 } // class

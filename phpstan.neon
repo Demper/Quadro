@@ -1,0 +1,21 @@
+parameters:
+    bootstrapFiles:
+        - bootstrap.php
+    level: 8
+    paths:
+        - libraries
+
+    ignoreErrors:
+        -
+            message: '#Property .*\$code has no type specified#'
+            path: *
+#        -
+#            message: '#Variable (\$_GET|\$_POST) in isset\(\) always exists and is not nullable.#'
+#            path: *
+#        -
+#            message: '#Variable (\$_GET|\$_POST) on left side of \?\? always exists and is not nullable.#'
+#            path: *
+#
+#        -
+#            message: '#Expression on left side of \?\? is always null#'
+#            path:  libraries/Quadro/Http/Request.php

@@ -1,5 +1,4 @@
 <?php
-
 /**
  * This file is part of the Quadro RestFull Framework which is released under WTFPL.
  * See file LICENSE.txt or go to http://www.wtfpl.net/about/ for full license details.
@@ -19,7 +18,9 @@ declare(strict_types=1);
 
 namespace Quadro\Dispatcher;
 
-class NotFoundException extends Exception
+use Quadro\Exception as BaseException;
+
+class NotFoundException extends BaseException
 {
     protected $code = 404;
 }

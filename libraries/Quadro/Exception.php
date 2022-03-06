@@ -18,7 +18,6 @@ declare(strict_types=1);
 
 namespace Quadro;
 
-use JetBrains\PhpStorm\ArrayShape;
 use JsonSerializable;
 
 /**
@@ -32,18 +31,10 @@ class Exception extends \Exception implements JsonSerializable
      *
      * The information differs based on the environment(production or other)
      *
-     * @return array
+     * @return mixed
      * @throws Config\Exception
      */
-    #[ArrayShape([
-        'code' => "int|mixed",
-        'message' => "string",
-        'file' => "string",
-        'line' => "int",
-        'previous' => "\Exception",
-        'trace' => "array"
-    ])]
-    public function jsonSerialize(): array
+    public function jsonSerialize(): mixed
     {
         if (Application::getInstance()->getEnvironment() === Application::ENV_PRODUCTION) {
             return [
@@ -78,7 +69,7 @@ class Exception extends \Exception implements JsonSerializable
      *
      * @return string
      */
-    public function __toString()
+    public function __toString(): string
     {
         if ($this->_inProduction()) {
             return 'Exception, code = ' .  $this->getCode();
@@ -102,7 +93,7 @@ class Exception extends \Exception implements JsonSerializable
      */
     protected function _inProduction(): bool
     {
-        if (false === getenv(Applicatioon::ENV_INDEX) ) {
+        if (false === getenv(Application::ENV_INDEX) ) {
             putenv(Application::ENV_INDEX .'=' . Application::ENV_PRODUCTION);
         }
         return getenv(Application::ENV_INDEX) === Application::ENV_PRODUCTION;

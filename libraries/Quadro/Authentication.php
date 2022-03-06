@@ -19,59 +19,99 @@ declare(strict_types=1);
 namespace Quadro;
 
 use Quadro\Application as Application;
+use Quadro\Authentication\EnumAuthenticateErrors;
 use Quadro\Authentication\EnumRegisterErrors;
-use Quadro\Http\Request as Request;
 use Quadro\Application\ComponentInterface;
-use Quadro\Config as Config;
 use Quadro\Application\ObserverInterface;
-use Quadro\Authentication\Exception as Exception;
-use Quadro\Http\Response\EnumLinkRelations as Link;
-
-use \Firebase\JWT\JWT;
-
 
 /**
- * Handles JWT authentication
+ * Handles authentication
  */
 abstract class Authentication implements ComponentInterface, ObserverInterface, AuthenticationInterface
 {
 
+    /**
+     * Observe Application on  initialization
+     *
+     * @throws Config\Exception
+     */
     public function __construct()
     {
         Application::getInstance()->attachObserver($this);
     }
 
-    protected string $_authenticateUri;
-    public function getAuthenticateUri(): string
-    {
-        if(!isset($this->_authenticateUri)) {
-            $this->_authenticateUri = Application::getInstance()->getConfig()->getOption('authentication.authenticateUri', '/accounts/authenticate');
-        }
-        return $this->_authenticateUri;
-    }
-    public function setAuthenticateUri(string $authenticateUri): self
-    {
-        $this->_authenticateUri = $authenticateUri;
-        return $this;
-    }
+    // -----------------------------------------------------------------------------
 
-    protected string $_registerUri;
-    public function getRegisterUri(): string
+    /**
+     * @var string
+     */
+    protected string $_authenticateUrl;
+
+    /**
+     * @return string
+     * @throws Config\Exception
+     */
+    #[Config\Key('authentication.authenticateUrl', '/accounts/authenticate', 'The URL to receive authentication details.')]
+    public function getAuthenticateUrl(): string
     {
-        if(!isset($this->_registerUri)) {
-            $this->_registerUri = Application::getInstance()->getConfig()->getOption('authentication.registerUri', '/accounts/register');
+        if(!isset($this->_authenticateUrl)) {
+            $this->_authenticateUrl = Application::getInstance()->getConfig()->getOption('authentication.authenticateUrl', '/accounts/authenticate');
         }
-        return $this->_registerUri;
-    }
-    public function setRegisterUri(string $registerUri): self
-    {
-        $this->_registerUri = $registerUri;
-        return $this;
+        return $this->_authenticateUrl;
     }
 
     /**
-     * @param array $credentials
-     * @return EnumRegisterErrors|array Error or array with newly registered user info
+     * Sets the Authentication Url
+     *
+     * @param string $authenticateUrl
+     * @return $this
+     */
+    public function setAuthenticateUrl(string $authenticateUrl): self
+    {
+        $this->_authenticateUrl = $authenticateUrl;
+        return $this;
+    }
+
+    // -----------------------------------------------------------------------------
+
+    /**
+     * @var string
+     */
+    protected string $_registerUrl;
+
+    /**
+     * @return string
+     * @throws Config\Exception
+     */
+    #[Config\Key('authentication.registerUrl', '/accounts/register', 'The URL to receive authentication registration details.')]
+    public function getRegisterUrl(): string
+    {
+        if(!isset($this->_registerUrl)) {
+            $this->_registerUrl = Application::getInstance()->getConfig()->getOption('authentication.registerUrl', '/accounts/register');
+        }
+        return $this->_registerUrl;
+    }
+
+    /**
+     * Sets the Authentication Registration Url
+     *
+     * @param string $registerUrl
+     * @return $this
+     */
+    public function setRegisterUrl(string $registerUrl): self
+    {
+        $this->_registerUrl = $registerUrl;
+        return $this;
+    }
+
+    // -----------------------------------------------------------------------------
+
+    /**
+     * Returns an array with account information on success, an EnumRegisterErrors otherwise
+     *
+     * @param array<int|string, string> $credentials
+     * @return EnumRegisterErrors|array<string, string>
+     * @throws Config\Exception
      */
     final public function register(array $credentials = [] ): EnumRegisterErrors|array
     {
@@ -93,49 +133,94 @@ abstract class Authentication implements ComponentInterface, ObserverInterface, 
             return EnumRegisterErrors::NotUnique;
         }
 
-        if (false === ($user = $this->_register($credentials))) {
+        $userData = $this->_register($credentials);
+        if (!is_array($userData)) {
             return EnumRegisterErrors::Unexpected;
         }
 
-        return $user;
+        return $userData;
     }
 
     /**
-     * @param array $credentials
-     * @return bool|string
+     * Returns an array with account information on success, an EnumAuthenticateErrors otherwise
+     *
+     * @param array<int|string, string> $credentials
+     * @return EnumAuthenticateErrors|array<string, string>
+     * @throws Config\Exception
      */
-    final public function authenticate(array $credentials = [] ): bool|string
+    final public function authenticate(array $credentials = [] ): EnumAuthenticateErrors|array
     {
         if ($this->_exceedsMaxLoginAttempts()) {
-            return false;
+            return EnumAuthenticateErrors::ExceedsMaxAttempts;
         }
 
         if (count($credentials) < 2){
             if( !$this->_getCredentials($credentials)) {
-                return false;
+                return EnumAuthenticateErrors::NoCredentials;
             }
         }
 
-        return $this->_authenticate($credentials);
+        $userData = $this->_authenticate($credentials);
+        if (!is_array($userData)) {
+            return EnumAuthenticateErrors::Failed;
+        }
+
+        return $userData;
     }
 
     // register and authentication hooks
+
+    /**
+     * @return bool
+     */
     abstract protected function _exceedsMaxRegisterAttempts(): bool;
+
+    /**
+     * @return bool
+     */
     abstract protected function _exceedsMaxLoginAttempts(): bool;
+
+    /**
+     * @param array<int|string, string> $credentials
+     * @return bool
+     * @throws Config\Exception
+     */
     abstract protected function _getCredentials(array &$credentials): bool;
+
+    /**
+     * @param array<int|string, string> $credentials
+     * @return bool
+     */
     abstract protected function _meetRequirements(array &$credentials): bool;
+
+    /**
+     * @param array<int|string, string> $credentials
+     * @return bool
+     * @throws Config\Exception
+     */
     abstract protected function _isUnique(array $credentials): bool;
+
+    /**
+     * @param array<int|string, string> $credentials
+     * @return bool|array{jwt: string}
+     * @throws Config\Exception
+     */
     abstract protected function _register(array $credentials): bool|array;
-    abstract protected function _authenticate(array $credentials): bool|string;
+
+    /**
+     * @param array<int|string, string> $credentials
+     * @return bool|array{jwt: string}
+     * @throws Config\Exception
+     */
+    abstract protected function _authenticate(array $credentials): bool|array;
 
     /**
      * @return string
      */
-    public static function getComponentName(): string
+    public static function getSingletonName(): string
     {
         return 'Quadro\Authentication';
     }
-
 
 
 }

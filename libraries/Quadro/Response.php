@@ -16,30 +16,21 @@
  */
 declare(strict_types=1);
 
-namespace Quadro\Http;
+namespace Quadro;
 
-use JetBrains\PhpStorm\NoReturn;
-use JetBrains\PhpStorm\Pure;
 use Quadro\Application as Application;
 use Quadro\Application\Component as Component;
-use Quadro\Http\Response\EnumLinkRelations as EnumLinkRelations;
-use Quadro\Http\ResponseInterface as IResponse;
+use Quadro\Response\EnumLinkRelations as EnumLinkRelations;
+use Quadro\ResponseInterface as ResponseInterface;
 
 /**
  * In the Quadro Restfull API application there can only be one response at
- * any time to the one request at any time. Hence the use of the singleton pattern.
+ * any time to the one request at any time.
  *
  * @package Quadro
  */
-class Response extends Component implements IResponse
+class Response extends Component implements ResponseInterface
 {
-    /**
-     * Response constructor.
-     */
-    public function __construct()
-    {
-        $this->setHeader('Content-Type: text/html');
-    }
 
     // -----------------------------------------------------------------------------
 
@@ -60,7 +51,7 @@ class Response extends Component implements IResponse
      * @see https://restfulapi.net/http-status-codes/
      * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Status
      * @param int $code
-     * @return Response
+     * @return static
      */
     public function setStatusCode(int $code): static
     {
@@ -167,7 +158,6 @@ class Response extends Component implements IResponse
     /**
      * @return string The full HTTP status code
      */
-    #[Pure]
     public function getStatus(): string
     {
         $protocol = ($_SERVER['SERVER_PROTOCOL'] ?? 'HTTP/1.0');
@@ -178,9 +168,9 @@ class Response extends Component implements IResponse
 
     /**
      * Cache for storing the links for this resource
-     * @var array
+     * @var array<int, array<string, string>>
      */
-    protected array $links = [];
+    protected array $_links = [];
 
     /**
      * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Link
@@ -188,13 +178,13 @@ class Response extends Component implements IResponse
      * @param string $href
      * @param string $method
      * @param string $type
-     * @return Response
+     * @return static
      */
-    public function addLink(EnumLinkRelations $rel, string $href, string $method = 'GET', string $type = 'application/json'): Response
+    public function addLink(EnumLinkRelations $rel, string $href, string $method = 'GET', string $type = 'application/json'): static
     {
-        $this->links[] = ['href' => $href, 'rel' => $rel->value, 'type' => $type, 'method' => $method];
+        $this->_links[] = ['href' => $href, 'rel' => $rel->value, 'type' => $type, 'method' => $method];
         $linkHeader = '';
-        foreach($this->links as $link) {
+        foreach($this->_links as $link) {
             $linkHeader .= ($linkHeader  == '') ? ''  : ',';
             $linkHeader .= "<{$link['href']}>; rel={$link['rel']}; type={$link['type']}";
         }
@@ -204,14 +194,58 @@ class Response extends Component implements IResponse
 
     /**
      * Returns all links for this response
-     * @return array
+     * @return array<int, array<string, string>>
      */
     public function getLinks(): array
     {
-        return $this->links;
+        return $this->_links;
     }
 
     // -----------------------------------------------------------------------------
+
+    /**
+     * @var  array<int, array<string, string>>
+     */
+    protected array $_messages = [];
+
+    /**
+     * @param string $message
+     * @param int|string|null $index
+     * @return $this
+     */
+    public function addMessage(string $message, int|string|null $index = null): static
+    {
+        if (is_int($index)) {
+            $i = $index;
+        } else {
+            $i = count($this->_messages);
+        }
+        $this->_messages[$i] =  ['text' => $message];
+        if(is_string($index)) {
+            $this->_messages[$i]['name'] = $index;
+        }
+        return $this;
+    }
+
+    /**
+     * @return array<int, array<string, string>>
+     */
+    public function getMessages(): array
+    {
+        return $this->_messages;
+    }
+
+    /**
+     * @param array<int|string, string> $messages
+     * @return static
+     */
+    public function setMessages(array $messages = []): static
+    {
+        foreach($messages as $index => $message) {
+            $this->addMessage($message, $index);
+        }
+        return $this;
+    }
 
     /**
      * Add this header to the headers to be sent
@@ -240,7 +274,7 @@ class Response extends Component implements IResponse
     /**
      * Returns the headers to be sent
      *
-     * @return array
+     * @return  array<int, string>
      */
     public function getHeaders(): array
     {
@@ -270,7 +304,7 @@ class Response extends Component implements IResponse
      * @param bool $append
      * @return $this
      */
-    public function setContent(mixed $content, bool $append = false): self
+    public function setContent(mixed $content, bool $append = false): static
     {
         if ($append ) {
             $this->_content .= (string) $content;
@@ -287,19 +321,23 @@ class Response extends Component implements IResponse
      *
      * @throws \Quadro\Config\Exception
      */
-    #[NoReturn]
     public function send(): void
     {
+
         $content =  $this->getContent();
+
+
 
         if (headers_sent())  {
             if (Application::getInstance()->debug()) {
                 echo PHP_EOL, 'UNEXPECTED QUADRO HEADERS SEND ERROR!!!' . PHP_EOL;
                 echo PHP_EOL . $content . PHP_EOL . PHP_EOL;
                 foreach (debug_backtrace() as $index => $trace) {
+                    $line = (string) ($trace['line'] ?? '-');
+                    $file = (string) ($trace['file'] ?? 'unknown file');
                     echo str_pad((string)$index, 3, ' ', STR_PAD_LEFT) . ' ' .
-                        str_pad((string)$trace['line'], 4, ' ', STR_PAD_LEFT) . ' ' .
-                        $trace['file'] . PHP_EOL;
+                        str_pad($line, 4, ' ', STR_PAD_LEFT) . ' ' .
+                        $file . PHP_EOL;
                 }
                 exit(1);
             }
@@ -308,6 +346,9 @@ class Response extends Component implements IResponse
         $this->setHeader('Content-Length: ' . strlen($content));
         $this->setHeader($this->getStatus(), true, $this->getStatusCode());
         echo $content;
+
+
+
         exit(0);
     }
 

@@ -31,34 +31,34 @@ trait OptionsTrait
      
     // The first placeholder(%s) is the name of the option key,
     // the second the name of the class the Trait is being used in.
-    protected string $requiredMissingMessage = 'Required option "%s" is missing in "%s::options"!';
-    protected string $notAllowedMessage      = 'Option "%s" not allowed in "%s::options"!';
-    protected string $optionNotFoundMessage  = 'Option "%s" not found in "%s::options" and no default value provided.';
-    protected string $alreadySetMessage      = 'Option "%s" already set in "%s::options"!';
+    protected string $_requiredMissingMessage = 'Required option "%s" is missing in "%s::options"!';
+    protected string $_notAllowedMessage      = 'Option "%s" not allowed in "%s::options"!';
+    protected string $_optionNotFoundMessage  = 'Option "%s" not found in "%s::options" and no default value provided.';
+    protected string $_alreadySetMessage      = 'Option "%s" already set in "%s::options"!';
 
     /**
      * @ignore (do not show up in generated documentation)
      * @var array|string[] If not empty only these options keys are required
      */
-    protected array $requiredOptions = [];
+    protected array $_requiredOptions = [];
     
     /**
      * @ignore (do not show up in generated documentation)
      * @var array|string[] White list options. If not empty only these options are allowed
      */
-    protected array $allowedOptions = [];
+    protected array $_allowedOptions = [];
 
     /**
      * @ignore (do not show up in generated documentation)
-     * @var array Internal list with options;
+     * @var array<string, mixed> Internal list with options;
      */
-    protected array $options = [];
+    protected array $_options = [];
 
     /**
      * @ignore (do not show up in generated documentation)
      * @var mixed|null Called when an option is changed
      */
-    protected mixed /*callable*/ $onOptionChange = null;
+    protected mixed /*callable*/ $_onOptionChange = null;
 
     /**
      * Sets or overwrites the entire options list. 
@@ -69,36 +69,38 @@ trait OptionsTrait
      * @see Config::$allowedOptions
      * @see Config::$requiredOptions
      * 
-     * @param array $options
+     * @param array<string, mixed> $options
      * @return object The current instance of the class implementing this trait
      * @throws Exception
      */
     public function setOptions(array $options): object
     {
-        foreach($this->requiredOptions as $key) {
+        foreach($this->_requiredOptions as $key) {
             if(!array_key_exists($key, $options)){
-                 throw new Exception(sprintf($this->requiredMissingMessage, $key, $this->_getCallee()));
+                 throw new Exception(sprintf($this->_requiredMissingMessage, $key, $this->_getCallee()));
             }
         }       
-        if (count($this->allowedOptions)) {
+        if (count($this->_allowedOptions)) {
             foreach(array_keys($options) as $key) {
-                if(!in_array($key, $this->allowedOptions)){
-                     throw new Exception(sprintf($this->notAllowedMessage, $key, $this->_getCallee()));
+                if(!in_array($key, $this->_allowedOptions)){
+                     throw new Exception(sprintf($this->_notAllowedMessage, $key, $this->_getCallee()));
                 }
             }
         }
-        $this->options = $options;
+        $this->_options = $options;
         return $this;
     }
 
 
 
     /**
-     * Returns all the options 
+     * Returns all the options
+     *
+     * @return array<string, mixed>
      */
     public function getOptions(): array
     {
-        return $this->options;
+        return $this->_options;
     }
 
 
@@ -116,17 +118,17 @@ trait OptionsTrait
      */
     public function getOption(string $key, mixed $default=null): mixed
     {
-        if (count($this->allowedOptions)) {
-            if (!in_array($key, $this->allowedOptions)){
-                throw new Exception(sprintf($this->notAllowedMessage, $key, $this->_getCallee()));
+        if (count($this->_allowedOptions)) {
+            if (!in_array($key, $this->_allowedOptions)){
+                throw new Exception(sprintf($this->_notAllowedMessage, $key, $this->_getCallee()));
             }
         }
         $keys = explode('.', $key);
-        $current = &$this->options;
+        $current = &$this->_options;
         for($keyIndex = 0; $keyIndex < count($keys); $keyIndex++){
             if (!is_array($current) || !isset($current[$keys[$keyIndex]])) {
                 if (null===$default) {
-                    throw new Exception(sprintf($this->optionNotFoundMessage, $key, $this->_getCallee()));
+                    throw new Exception(sprintf($this->_optionNotFoundMessage, $key, $this->_getCallee()));
                 }
                 return $default;
             }
@@ -140,10 +142,9 @@ trait OptionsTrait
         $callee  = '' ; //static::class;
         $backtrace = debug_backtrace();
         if (isset($backtrace[2])) {
-            $callee  = $backtrace[2]['class']??'';
+            $callee  = $backtrace[2]['class'] ?? '';
             $callee .= $callee==''?'':'::';
-
-            $callee .= $backtrace[2]['function']??'';
+            $callee .= $backtrace[2]['function']; //  $backtrace[2]['function'] ?? ''; function index is always set
             $callee .= $callee==''?'':'()';
         }
         if ('' == $callee) $callee = static::class;
@@ -176,15 +177,15 @@ trait OptionsTrait
         //    exit(__METHOD__ . ' :: ' . __LINE__ . ' @ ' . __FILE__ );
 
         if ($this->hasOption($key) && !$overWrite) {
-            throw new Exception(sprintf($this->alreadySetMessage, $key, $this->_getCallee()));
+            throw new Exception(sprintf($this->_alreadySetMessage, $key, $this->_getCallee()));
         }
-        if (count($this->allowedOptions)) {
-            if (!in_array($key, $this->allowedOptions)){
-                throw new Exception(sprintf($this->notAllowedMessage, $key, $this->_getCallee()));
+        if (count($this->_allowedOptions)) {
+            if (!in_array($key, $this->_allowedOptions)){
+                throw new Exception(sprintf($this->_notAllowedMessage, $key, $this->_getCallee()));
             }
         }
         $keys = explode('.', $key);
-        $current = &$this->options;
+        $current = &$this->_options;
         for($keyIndex = 0; $keyIndex < count($keys); $keyIndex++){
             if (!isset($current[$keys[$keyIndex]])) {
                 if (!is_array($current)) $current = [];
@@ -194,8 +195,8 @@ trait OptionsTrait
         }
         $old = $current;
         $current = $value;
-        if(is_callable($this->onOptionChange)){
-            call_user_func($this->onOptionChange,$key, $old, $value);
+        if(is_callable($this->_onOptionChange)){
+            call_user_func($this->_onOptionChange,$key, $old, $value);
         }
         return $this;
     }
@@ -212,7 +213,7 @@ trait OptionsTrait
     {
 
         $keys = explode('.', $key);
-        $current = &$this->options;
+        $current = &$this->_options;
         for($keyIndex = 0; $keyIndex < count($keys); $keyIndex++){
             if (!is_array($current) || !isset($current[$keys[$keyIndex]])) {
                 return false;

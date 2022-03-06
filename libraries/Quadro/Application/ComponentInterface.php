@@ -18,13 +18,13 @@ declare(strict_types=1);
 
 namespace Quadro\Application;
 
-interface  ComponentInterface
+interface ComponentInterface
 {
     /**
      * Returns the generic name for this component.
      * The function is static in order to access it without the need of an instance
      * @return string
      */
-    public static function getComponentName(): string;
+    public static function getSingletonName(): string;
 
 }

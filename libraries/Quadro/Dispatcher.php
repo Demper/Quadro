@@ -18,13 +18,10 @@ declare(strict_types=1);
 
 namespace Quadro;
 
-use JetBrains\PhpStorm\ArrayShape;
-use JetBrains\PhpStorm\Pure;
 use JsonSerializable;
 use Quadro\Application\Component;
 use Quadro\Config\OptionsTrait as Options;
-use Quadro\Http\RequestInterface as IRequest;
-use Quadro\Http\ResponseInterface as IResponse;
+use Quadro\RequestInterface as IRequest;
 
 /** 
  * The dispatcher takes an url and tries to find a handler for it in the given folders
@@ -33,18 +30,21 @@ use Quadro\Http\ResponseInterface as IResponse;
  * @package libraries\Quadro
  * @author  Rob <rob@jaribio.nl>
  */
-class Dispatcher extends Component implements DispatcherInterface, JsonSerializable
+abstract class Dispatcher extends Component implements DispatcherInterface, JsonSerializable
 {
     use Options;
 
+    /**
+     * @param array<string, mixed> $options
+     * @throws Config\Exception
+     */
     public function __construct(array $options=[])
     {
         $this->setOptions($options);
-        $this->_initialize_();
+        if(method_exists($this, '_initialize_')) {
+            $this->_initialize_();
+        }
     }
-    protected function _initialize_()
-    {}
-
 
     /**
      * Remove unwanted elements in the request URI
@@ -52,8 +52,8 @@ class Dispatcher extends Component implements DispatcherInterface, JsonSerializa
      * @param string $requestUri
      * @return string
      */
-    public function sanitizeRequestUri(string $requestUri): string{
-
+    public function sanitizeRequestUri(string $requestUri): string
+    {
         $sanitizedRequestUri = str_replace('..', '', $requestUri);
         return str_replace(['//', '\\\\'] , '//', $sanitizedRequestUri);
     }
@@ -64,20 +64,14 @@ class Dispatcher extends Component implements DispatcherInterface, JsonSerializa
      * @param IRequest $request THe URI to find a handler for
      * @return mixed
      */
-    public function handleRequest(IRequest $request): mixed
+    abstract public function handleRequest(IRequest $request): mixed;
+
+    /**
+     * @return mixed
+     */
+    public function jsonSerialize(): mixed
     {
-        return false;
+        return '';
     }
 
-
-    #[Pure]
-    #[ArrayShape(['path' => "int[]|string[]"])]
-    public function jsonSerialize(): array
-    {
-        return [
-        ];
-    }
-
-
-    
 } // class

@@ -24,6 +24,10 @@ use Quadro\Application\Component As Component;
 class Text extends Component
 {
 
+    /**
+     * @param string $language
+     * @param array<int, string> $directories
+     */
     public function __construct(string $language = 'en', array $directories = [])
     {
         $this->setLanguage($language);
@@ -35,12 +39,23 @@ class Text extends Component
         $this->addDirectory(QUADRO_DIR . 'resources' . DIRECTORY_SEPARATOR . 'text' . DIRECTORY_SEPARATOR);
     }
 
+    /**
+     * @var array<string, string> $_directories
+     */
     protected array $_directories = [];
 
+    /**
+     * @return array<string, string>
+     */
     public function getDirectories(): array
     {
         return $this->_directories;
     }
+
+    /**
+     * @param string $directory
+     * @return self
+     */
     public function addDirectory(string $directory) : self
     {
         // TODO validate paths
@@ -49,38 +64,55 @@ class Text extends Component
     }
 
 
-
+    /**
+     * @var string
+     */
     protected string $_language = 'en';
+
+    /**
+     * @return string
+     */
     public function getLanguage(): string
     {
         return $this->_language;
     }
+
+    /**
+     * @param string $language
+     * @return self
+     */
     public function setLanguage(string $language): self
     {
         $this->_language = $language;
         return $this;
     }
 
+    /**
+     * Default language
+     */
     const LANG_DEFAULT = 'en';
 
+    /**
+     * @var array<string[]> $_translationCache
+     */
     protected array $_translationCache = [];
 
     /**
      * @param string $collection
      * @param string $text
-     * @param array $placeholders
+     * @param array<int, mixed> $placeholders
      * @return string
      */
     public function translate(string $collection, string $text, array $placeholders=[]): string
     {
-        if(!isset($this->translationCache[$collection]) || !isset($this->translationCache[$collection][$text])) {
+        if(!isset($this->_translationCache[$collection]) || !isset($this->_translationCache[$collection][$text])) {
             foreach($this->_directories as $dir) {
                 $file = $dir . $this->getLanguage() . Application::DS
-                    . strtolower(preg_replace('/[^0-9a-zA-Z]/', '-', $collection)) . '.php';
+                    . strtolower((string) preg_replace('/[^0-9a-zA-Z]/', '-', $collection)) . '.php';
                 if (file_exists($file)) {
                     $this->_translationCache[$collection] = (array)include $file;
                 };
-                if (!isset($this->translationCache[$collection][$text])) {
+                if (!isset($this->_translationCache[$collection][$text])) {
                     $this->_translationCache[$collection][$text] = $text;
                 }
             }
@@ -89,7 +121,7 @@ class Text extends Component
     }
 
     /**
-     * @param array $collections
+     * @param string[] $collections
      * @param bool $reload
      * @return int
      */
@@ -97,10 +129,10 @@ class Text extends Component
     {
         $loaded = 0;
         foreach($collections as $collection){
-            if(!isset($this->translationCache[$collection]) || $reload) {
+            if(!isset($this->_translationCache[$collection]) || $reload) {
                 foreach($this->_directories as $dir) {
                     $file = $dir . $this->getLanguage() . Application::DS
-                        . strtolower(preg_replace('/[^0-9a-zA-Z]/', '-', $collection)) . '.php';
+                        . strtolower((string) preg_replace('/[^0-9a-zA-Z]/', '-', $collection)) . '.php';
                     if (file_exists($file)) {
                         $this->_translationCache[$collection] = (array)include $file;
                         $loaded++;

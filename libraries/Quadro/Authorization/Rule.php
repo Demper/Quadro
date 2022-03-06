@@ -1,42 +1,79 @@
 <?php
+declare(strict_types=1);
 
 namespace Quadro\Authorization;
 
+/**
+ *
+ */
 class Rule
 {
 
-    public function __construct(string $resource, array $actions, EnumRuleType $type, int $roles)
+
+    /**
+     * @param string $resourcePattern
+     * @param string[] $roles
+     * @param string[] $actions
+     * @param EnumRuleType $type
+     */
+    public function __construct(string $resourcePattern,  array $roles = [], array $actions = [], EnumRuleType $type = EnumRuleType::ALLOW)
     {
-        $this->_resource = strtolower($resource);
+        $this->_resourcePattern = strtolower($resourcePattern);
+        $this->_roles =  array_map( 'strtolower', $roles );
         $this->_actions = array_map( 'strtolower', $actions );
         $this->_type = $type;
-        $this->_roles = $roles;
     }
 
-    private string $_resource;
-    public function getResource(): string
+    /**
+     * @var string
+     */
+    private string $_resourcePattern;
+
+    /**
+     * @return string
+     */
+    public function getResourcePattern(): string
     {
-        return $this->_resource;
+        return $this->_resourcePattern;
     }
 
+    /**
+     * @var string[]
+     */
     private array $_actions;
+
+    /**
+     * @return string[]
+     */
     public function getActions(): array
     {
         return $this->_actions;
     }
 
+    /**
+     * @var EnumRuleType
+     */
     private EnumRuleType $_type;
+
+    /**
+     * @return EnumRuleType
+     */
     public function getType(): EnumRuleType
     {
         return $this->_type;
     }
 
-    private int $_roles;
-    public function getRoles(): int
+    /**
+     * @var string[]
+     */
+    private array $_roles;
+
+    /**
+     * @return string[]
+     */
+    public function getRoles(): array
     {
         return $this->_roles;
     }
-
-
 
 }

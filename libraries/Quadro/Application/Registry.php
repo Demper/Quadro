@@ -19,7 +19,7 @@ declare(strict_types=1);
 namespace Quadro\Application;
 
 use JsonSerializable;
-use Quadro\Application\RegistryException as Exception;
+use Quadro\Application\Registry\Exception as Exception;
 
 /**
  * Class Registry
@@ -33,20 +33,18 @@ class Registry implements JsonSerializable
 
     /**
      * The registered component objects
-     * @var array
+     * @var array<string, ComponentInterface>
      */
     protected array $_components = [];
-
-
 
     /**
      * Add a component object to the registry.
      *
      * @param callable|ComponentInterface $component The component to be registered
-     * @param string|null $index The (unique)index for this object. It defaults to componentInterface::getComponentName()
+     * @param string|null $index The (unique)index for this object. It defaults to componentInterface::getSingletonName()
      *                            which defaults to the class name of the Component
      * @return ComponentInterface Newly added component
-     * @throws RegistryException
+     * @throws Exception
      */
     final public function add(ComponentInterface|callable $component, string $index = null): ComponentInterface
     {
@@ -57,12 +55,12 @@ class Registry implements JsonSerializable
             }
         }
 
-        if (null === $index) $index = $component::getComponentName();
+        if (null === $index) $index = $component::getSingletonName();
 
         if (!$this->has($index)) {
             $this->_components[$index] = $component;
         } else {
-            throw new Exception('Component %s already exists!', $index);
+            throw new Exception(sprintf('Component %s already exists!', $index));
         }
 
         return $this->_components[$index];
@@ -75,7 +73,7 @@ class Registry implements JsonSerializable
      *
      * @param string $index
      * @return mixed
-     * @throws RegistryException
+     * @throws Exception
      */
     public function get(string $index): mixed
     {
@@ -95,12 +93,12 @@ class Registry implements JsonSerializable
      *
      * @param string $index
      * @return bool
-     * @throws RegistryException
+     * @throws Exception
      */
     public function remove(string $index): bool
     {
         if (!$this->has($index)) {
-            throw new Exception('Component %s not found', $index);
+            throw new Exception(sprintf('Component %s not found', $index));
         }
         unset($this->_components[$index]);
         return $this->has($index);
@@ -124,9 +122,9 @@ class Registry implements JsonSerializable
 
     /**
      * @see \JsonSerializable PHP std Interface
-     * @return array
+     * @return mixed
      */
-    public function jsonSerialize(): array
+    public function jsonSerialize(): mixed
     {
         return [
             array_keys($this->_components)

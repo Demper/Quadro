@@ -17,7 +17,6 @@
 declare(strict_types=1);
 
 namespace Quadro;
-
 use Quadro\Config\OptionsTrait;
 use Quadro\Config\Exception as Exception;
 
@@ -41,7 +40,7 @@ class Config
      * Passed options can be a PHP file returning an array or an array itself
      *
      * Config constructor.
-     * @param array|string|null $options
+     * @param array<string, mixed>|string|null $options
      * @param callable|null $onOptionChangeCallback
      * @throws Exception
      */
@@ -56,30 +55,42 @@ class Config
             }
             $this->setOptions($options);
         }
-        $this->onOptionChange = $onOptionChangeCallback;
+        $this->_onOptionChange = $onOptionChangeCallback;
     }
 
-
-
+    /**
+     * @return string[]
+     */
     public function getRequiredOptions(): array
     {
-        return $this->requiredOptions;
+        return $this->_requiredOptions;
     }
+
+    /**
+     * @param string[] $requiredOptions
+     * @return static
+     */
     public function setRequiredOptions(array $requiredOptions): self
     {
-        $this->requiredOptions = $requiredOptions;
+        $this->_requiredOptions = $requiredOptions;
         return $this;
     }
 
-
-
+    /**
+     * @return string[]
+     */
     public function getAllowedOptions(): array
     {
-        return $this->allowedOptions;
+        return $this->_allowedOptions;
     }
-    public function setAllowedOptions(array $allowedOptions): self
+
+    /**
+     * @param string[] $allowedOptions
+     * @return static
+     */
+    public function setAllowedOptions(array $allowedOptions): static
     {
-        $this->allowedOptions = $allowedOptions;
+        $this->_allowedOptions = $allowedOptions;
         return $this;
     }
 

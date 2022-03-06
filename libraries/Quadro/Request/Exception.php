@@ -16,7 +16,7 @@
  */
 declare(strict_types=1);
 
-namespace Quadro\Application;
+namespace Quadro\Request;
 
 use Quadro\Exception as BaseException;
 
@@ -25,7 +25,7 @@ use Quadro\Exception as BaseException;
  *
  * @package Quadro\Application
  */
-class RegistryException extends BaseException
+class Exception extends BaseException
 {
 
 }

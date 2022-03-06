@@ -124,56 +124,60 @@ class SQLite extends BaseDb
 
     /**
      * @see https://sqlite.org/lang_savepoint.html
+     * @throws SQLiteException
      */
     public function begin(string $savepoint = null): bool
     {
         array_push($this->transactionStack,$savepoint );
         if (null !== $savepoint && strlen($savepoint)) {
-            return $this->exec('SAVEPOINT "'.$savepoint.'"');
+            return (bool) $this->execute('SAVEPOINT "'.$savepoint.'"');
         }  else { 
-            return $this->exec('BEGIN');
+            return (bool)  $this->execute('BEGIN');
         }
         
     } // begin(...)   
-        
+
     /**
      * @see https://sqlite.org/lang_savepoint.html
+     * @throws SQLiteException
      */
     public function commit(string $savepoint = null): bool
     {
         array_pop($this->transactionStack );
         if (null !== $savepoint && strlen($savepoint)) {
-            return $this->exec('RELEASE "'.$savepoint.'"');
+            return (bool) $this->execute('RELEASE "'.$savepoint.'"');
         }  else {            
-            return $this->exec('COMMIT');
+            return (bool) $this->execute('COMMIT');
         } 
         
     } // commit()
 
     /**
      * @see https://sqlite.org/lang_savepoint.html
+     * @throws SQLiteException
      */
     public function rollBack(string $savepoint = null): bool
     {
         array_pop($this->transactionStack);
         if (null !== $savepoint && strlen($savepoint)) {
-            return $this->exec('ROLLBACK TO "'.$savepoint.'"');
+            return (bool) $this->execute('ROLLBACK TO "'.$savepoint.'"');
         }  else { 
-            return $this->exec('ROLLBACK');
+            return (bool) $this->execute('ROLLBACK');
         }  
         
     } // rollBack()
         
     // -------------------------------------------------------------------------------------------------
-    
+
     /**
      * Executes a query which makes changes into the database.
      * Default with a transaction.
-     * 
+     *
      * @param string $query The query
-     * @param array $params The params used in the query
+     * @param array|null $params The params used in the query
      * @param bool $verbose Prints out extra infomation
      * @return int          The number of affected rows, zero if none where affected
+     * @throws SQLiteException
      */
     public function execute( string $query, array $params = null, bool $verbose = false): int
     {   
@@ -192,7 +196,7 @@ class SQLite extends BaseDb
             $error =  $pdoStatement->errorInfo();
                     
         } else { 
-            $result = $this->exec( $query );
+            $result = $this->execute( $query );
             $error = $this->errorInfo();
         }
         
@@ -258,15 +262,17 @@ class SQLite extends BaseDb
     const PARAM_INT  = 1; //  PDO::PARAM_INT
     const PARAM_STR  = 2; //  PDO::PARAM_STR 
     const PARAM_LOB  = 3; //  PDO::PARAM_LOB
-    
-    
-    /** 
+
+
+    /**
      *
-     * @param string $query  SQL Statement which should returns a list of rows
-     * @param array $params   
-     * @return bool          TRUE on succes throws an Exception other wise;
+     * @param string $query SQL Statement which should returns a list of rows
+     * @param array $params
+     * @param bool $verbose
+     * @return bool|\Generator|null TRUE on succes throws an Exception other wise;
+     * @throws SQLiteException
      */
-    public function select(string $query, array $params = [], bool $verbose = false)
+    public function select(string $query, array $params = [], bool $verbose = false): bool|\Generator|null
     {   
         $pdoStatement = $this->getPrepareStatement($query);   
         $binds = $this->getBinds($params);
@@ -402,8 +408,14 @@ class SQLite extends BaseDb
         }
         
     } // insert(...)
-    
-    
+
+
+    /**
+     * @param string $table
+     * @param array<int, <string, mixed> $paramsPerRow
+     * @return bool|null
+     * @throws SQLiteException
+     */
     public function insertRows(string $table, array $paramsPerRow): ?bool
     {
         $this->begin(__METHOD__);        
@@ -413,15 +425,14 @@ class SQLite extends BaseDb
             }
         } catch (SQLiteException $e){ 
             $this->rollBack(__METHOD__);
-            throw $e;
-            // return false;
+             return false;
         }
         $this->commit(__METHOD__);
         return true;
         
-    } // insertRows
+    }
             
-        
+    /*
     public function deleteRow(): bool
     {
         // TODO 
@@ -429,8 +440,10 @@ class SQLite extends BaseDb
         return false;
         
     } // deleteRow()
-    
-    
+    */
+
+
+    /*
     public function deleteRows(): bool
     {
         // TODO 
@@ -438,7 +451,7 @@ class SQLite extends BaseDb
         return false;
         
     } // deleteRows()
-    
+    */
     
     
 } // class

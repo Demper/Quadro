@@ -20,8 +20,29 @@ namespace Quadro;
 
 interface DbInterface
 {
+    /**
+     * @param string|null $savepoint
+     * @return bool
+     */
     public function begin(string $savepoint = null): bool;
+
+    /**
+     * @param string|null $savepoint
+     * @return bool
+     */
     public function commit(string $savepoint = null): bool;
+
+    /**
+     * @param string|null $savepoint
+     * @return bool
+     */
     public function rollBack(string $savepoint = null): bool;
+
+    /**
+     * @param string $query
+     * @param array<string, mixed>|null $params
+     * @param bool $verbose
+     * @return int
+     */
     public function execute(string $query, array $params = null, bool $verbose = false): int;
 }

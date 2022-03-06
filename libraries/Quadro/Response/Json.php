@@ -16,25 +16,24 @@
  */
 declare(strict_types=1);
 
-namespace Quadro\Http\Response;
+namespace Quadro\Response;
 
 use ArrayAccess;
 use Countable;
 use DateTime;
 use Exception;
-use JetBrains\PhpStorm\Pure;
 use JsonSerializable;
 use Quadro\Application as Application;
-use Quadro\Http\RequestInterface as IRequest;
-use Quadro\Http\Response as BaseResponse;
-use Quadro\Http\Response\EnumLinkRelations as EnumLinkRelations;
+use Quadro\RequestInterface as IRequest;
+use Quadro\Response as BaseResponse;
+use Quadro\Response\EnumLinkRelations as EnumLinkRelations;
 use Serializable;
 use stdClass;
 use Traversable;
 
 /**
  * In the Quadro Restfull API application there can only be one response at
- * any time to the one request at any time. Hence the use of the singleton pattern.
+ * any time to the one request at any time.
  *
  * @package Quadro
  */
@@ -60,7 +59,15 @@ class Json extends BaseResponse implements JsonSerializable
         $this->setHeader(
             'Access-Control-Allow-Headers: Authorization, Origin, DNT, Referer, User-Agent, Quadro-GUID'
         );
-        $this->setHeader('Access-Control-Expose-Headers: '. $this->_getRequest()->getHeaders('Access-Control-Request-Headers'));
+
+
+        // NOTE:
+        //   PHPstan gives me the following error:
+        //   Binary operation "." between 'Access-Control…' and array<string, string>|string results in an error.
+        // I really do not know how to solve this. The function getHeaders wil
+        $this->setHeader(
+            'Access-Control-Expose-Headers: '. $this->_getRequest()->getHeader('Access-Control-Request-Headers')
+        );
 
     }
 
@@ -89,7 +96,7 @@ class Json extends BaseResponse implements JsonSerializable
         return $this;
     }
 
-    #[Pure]
+
     public function getReturnCount(): ?int
     {
         if (!$this->returnIsCountable()) {
@@ -100,19 +107,30 @@ class Json extends BaseResponse implements JsonSerializable
 
     // -----------------------------------------------------------------------------
 
-    protected ?string $_returnType = null;
+    /**
+     * Set to "unknown type" as the PHP function gettype() does
+     * @var string
+     */
+    protected string $_returnType = 'unknown type';
 
+    /**
+     * @see https://www.php.net/manual/en/function.gettype.php
+     * @return string
+     */
     public function getReturnType(): string
     {
-        if (null === $this->_returnType) {
-            return match (gettype($this->_returnValue)) {
-                'object' => get_class($this->_returnValue),
-                default => gettype($this->_returnValue),
-            }; // match
+        if ('object' == gettype($this->_returnValue)) {
+            $this->_returnType = (string) get_class($this->_returnValue);
+        }  else {
+            $this->_returnType = gettype($this->_returnValue);
         }
         return $this->_returnType;
     }
 
+    /**
+     * @param string $returnType
+     * @return $this
+     */
     public function setReturnType(string $returnType): static
     {
         $this->_returnType = $returnType;
@@ -129,9 +147,19 @@ class Json extends BaseResponse implements JsonSerializable
      */
     public function getReturnTotal() : ?int
     {
-        if (null === $this->_returnTotal || count($this->getReturnValue()) > $this->_returnTotal) {
-            $this->_returnTotal = count($this->getReturnValue());
+        $returnValueCounted = 0;
+        if (is_countable($this->getReturnValue())) {
+            $returnValueCounted = count($this->getReturnValue());
         }
+
+        if (null === $this->_returnTotal) {
+             $this->_returnTotal = $returnValueCounted;
+        } else {
+            if ($returnValueCounted  > $this->_returnTotal) {
+                $this->_returnTotal = $returnValueCounted;
+            }
+        }
+
         return $this->_returnTotal;
     }
 
@@ -151,7 +179,7 @@ class Json extends BaseResponse implements JsonSerializable
      * Whether the result value is iterable or countable
      * @return bool
      */
-    #[Pure] protected function returnIsCountable(): bool
+    protected function returnIsCountable(): bool
     {
         return
             is_array($this->getReturnValue())
@@ -172,7 +200,7 @@ class Json extends BaseResponse implements JsonSerializable
      */
     public function getReturnOffset(): int
     {
-        return (int)  $this->_getRequest()->getGetData('offset', FILTER_VALIDATE_INT);
+        return (int)  $this->_getRequest()->getGetData('offset', FILTER_VALIDATE_INT, 0);
     }
 
 
@@ -188,7 +216,9 @@ class Json extends BaseResponse implements JsonSerializable
     public function getReturnLimit(): int
     {
         $limit = (int) $this->_getRequest()->getGetData('limit', FILTER_VALIDATE_INT, static::DEFAULT_LIMIT);
-        return  ($this->getReturnCount() < $limit) ?  $this->getReturnCount() : $limit;
+        if ($this->getReturnCount() < $limit) return (int) $this->getReturnCount();
+        return $limit;
+            //return   ($this->getReturnCount() < $limit) ?  $this->getReturnCount() : $limit;
     }
 
     // -----------------------------------------------------------------------------
@@ -234,12 +264,11 @@ class Json extends BaseResponse implements JsonSerializable
      * @param mixed $value
      * @return mixed
      */
-    #[Pure]
     protected function jsonable(mixed $value): mixed
     {
         // if we have an object...
         if ('object' === gettype($value)) {
-            //var_dump($value);
+            $value = (object) $value;
 
             // ...and we can json-serialize it returns the object
             if ($value instanceof JsonSerializable) {
@@ -268,34 +297,9 @@ class Json extends BaseResponse implements JsonSerializable
         // in all other cases return the value as is
         return $value;
 
-    } // jsonSerialize()
-
-    // -----------------------------------------------------------------------------
-
-    protected array $messages = [];
-
-    public function addMessage(string $message, ?string $index = null): static
-    {
-        $i = count($this->messages);
-        $this->messages[$i] =  ['text' => $message];
-        if(is_string($index)) {
-            $this->messages[$i]['name'] = $index;
-        }
-        return $this;
     }
 
-    public function getMessages(): array
-    {
-        return $this->messages;
-    }
 
-    public function setMessages(array $messages = []): static
-    {
-        foreach($messages as $index => $message) {
-            $this->addMessage($message, $index);
-        }
-        return $this;
-    }
 
     // -----------------------------------------------------------------------------
 
@@ -311,6 +315,7 @@ class Json extends BaseResponse implements JsonSerializable
 
     // -----------------------------------------------------------------------------
 
+
     /**
      * Adds links for pagination if we have a countable return value
      * @return static
@@ -318,9 +323,9 @@ class Json extends BaseResponse implements JsonSerializable
     public function addPaginationLinks(): static
     {
         if ($this->returnIsCountable()) {
-            $limit = (int) $this->_getRequest()->getGetData('limit', FILTER_VALIDATE_INT, Response::DEFAULT_LIMIT);
+            $limit = (int) $this->_getRequest()->getGetData('limit', FILTER_VALIDATE_INT, Json::DEFAULT_LIMIT);
             $offset = (int) $this->_getRequest()->getGetData('offset', FILTER_VALIDATE_INT, 0);
-            $urlBase =  $this->_getRequest()->getScheme() . '://' .  $this->_getRequest()->getHost() . parse_url( $this->_getRequest()->getPath(),PHP_URL_PATH);
+            $urlBase =  $this->_getRequest()->getScheme()->name . '://' .  $this->_getRequest()->getHost() . parse_url( $this->_getRequest()->getPath(),PHP_URL_PATH);
             $total = $this->getReturnTotal();
             if ($limit > $total) {
                 $limit = $total;
@@ -329,28 +334,28 @@ class Json extends BaseResponse implements JsonSerializable
                 $this->addLink(
                     EnumLinkRelations::First,
                     $urlBase . sprintf('?offset=%d&limit=%d', 0, $limit),
-                    $this->_getRequest()->getMethod()
+                    $this->_getRequest()->getMethod()->name
                 );
             }
             if (($total-$offset) > $limit) {
                 $this->addLink(
                     EnumLinkRelations::Last,
                     $urlBase . sprintf('?offset=%d&limit=%d', $total - $limit, $limit),
-                     $this->_getRequest()->getMethod()
+                     $this->_getRequest()->getMethod()->name
                 );
             }
             if ($offset - $limit >= 0) {
                 $this->addLink(
                     EnumLinkRelations::Prev,
                     $urlBase . sprintf('?offset=%d&limit=%d', $offset - $limit, $limit),
-                    $this->_getRequest()->getMethod()
+                    $this->_getRequest()->getMethod()->name
                 );
             }
             if ($offset + $limit < $total) {
                 $this->addLink(
                     EnumLinkRelations::Next,
                     $urlBase . sprintf('?offset=%d&limit=%d', $offset + $limit, $limit),
-                    $this->_getRequest()->getMethod()
+                    $this->_getRequest()->getMethod()->name
                 );
             }
         }
@@ -361,7 +366,7 @@ class Json extends BaseResponse implements JsonSerializable
 
     /**
      * Returns the Response object as a json encoded string
-     * @return array
+     * @return array<string, array<int|string, mixed>>
      * @throws Exception
      */
     protected function toArray(): array
@@ -385,11 +390,11 @@ class Json extends BaseResponse implements JsonSerializable
             foreach ($this->getLinks() as $rel => $link) {
                 $links[$rel] = $link;
             }
-            try {
+            //try {
                 $response['linksTo'] = $links;
-            } catch (\Throwable $e) {
+            //} catch (\Throwable $e) {
 
-            }
+            //}
         }
 
         if (Application::environment() != Application::ENV_PRODUCTION) {
@@ -432,7 +437,7 @@ class Json extends BaseResponse implements JsonSerializable
     // ----------------------------------------------------------------------------------------------------------------
 
     /**
-     * @throws \JsonException|Exception
+     * @throws Exception
      */
     public function getContent(): string
     {
@@ -454,18 +459,19 @@ class Json extends BaseResponse implements JsonSerializable
     }
 
 
-
-
     /**
-     * @return array
-     * @throws Application\RegistryException|Exception
+     * @return mixed
+     * @throws \Quadro\Application\Registry\Exception|Exception
      */
-    public function jsonSerialize(): array
+    public function jsonSerialize(): mixed
     {
         return  $this->toArray();
     }
 
 
+    /**
+     * @return string
+     */
     public function getProtocol():string
     {
         return (isset($_SERVER['SERVER_PROTOCOL']))

@@ -16,8 +16,7 @@ declare(strict_types=1);
  */
 
 use PHPUnit\Framework\TestCase;
-
-use Quadro\Http\Request as Request;
+use Quadro\Request as Request;
 
 class RequestMockup Extends Request
 {

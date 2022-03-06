@@ -7,16 +7,14 @@
     "readme" : "./",
     "license": "MIT",
 
-
     "authors": [
         {
             "name":"Rob Demmenie",
             "email": "rob@jaribio.com",
-            "homepage": "https://ww.jaribio.com",
+            "homepage": "https://www.jaribio.com",
             "role": "developer"
         }
     ],
-
 
     "support": {
         "email": "suppport@jaribio.com"
@@ -24,15 +22,12 @@
 
     "minimum-stability": "dev",
 
-    "require": {
-        "firebase/php-jwt": "^5.4",
-        "paragonie/sodium_compat": "^1.17"
-    },
-
-
     "autoload": {
         "psr-4": {
             "Quadro\\": "libraries/Quadro"
         }
+    },
+    "require-dev": {
+        "phpstan/phpstan": "1.4.x-dev"
     }
 }

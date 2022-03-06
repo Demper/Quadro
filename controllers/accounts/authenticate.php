@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 use Quadro\Application as App;
 use Quadro\Authentication as Auth;
+use Quadro\Authentication\EnumAuthenticateErrors;
 
 $app = App::getInstance();
 
@@ -10,12 +11,12 @@ $app = App::getInstance();
  * If the there is no Authentication Component registered a HTTP 409 Conflict is returned
  * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/409.
  */
-if (!$app->hasComponent(Auth::getComponentName())) {
+if (!$app->hasComponent(Auth::getSingletonName())) {
     $app->getResponse()->setContent('Authentication Component not registered');
     $app->getResponse()->setStatusCode(409);
-    return null;
+    return $app->getResponse();
 }
-$auth = $app->getComponent(Auth::getComponentName());
+$auth = $app->getComponent(Auth::getSingletonName());
 
 /**
  * This controller returns the JWT on success
@@ -26,8 +27,36 @@ $auth = $app->getComponent(Auth::getComponentName());
  * to be passed as a json object or as POST date.
 */
 $result = $auth->authenticate();
-if ($result === false){
-    $app->getResponse()->setStatusCode( 422);
-    return null;
+if($result instanceof EnumAuthenticateErrors) {
+    switch ($result) {
+
+        case EnumAuthenticateErrors::ExceedsMaxAttempts;
+            $app->getResponse()->setContent($result->getMessage());
+            $app->getResponse()->setStatusCode(429);
+            break;
+
+        case EnumAuthenticateErrors::NoCredentials;
+            $app->getResponse()->setContent($result->getMessage());
+            $app->getResponse()->setStatusCode(400);
+            break;
+
+        case EnumAuthenticateErrors::TokenIsEmpty; // no break;
+        case EnumAuthenticateErrors::TokenInvalidFormat; // no break;
+        case EnumAuthenticateErrors::TokenDecodeError; // no break;
+        case EnumAuthenticateErrors::TokenExpirationMissing; // no break;
+        case EnumAuthenticateErrors::TokenExpired; // no break;
+        case EnumAuthenticateErrors::TokenInvalid; // no break;
+        case EnumAuthenticateErrors::Failed; // no break;
+        default:
+            $app->getResponse()->setContent($result->getMessage());
+            $app->getResponse()->setStatusCode( 422);
+    }
+
+} else {
+    $app->getResponse()->setHeader('WWW-Authenticate: Bearer '. $result['jwt']);
+    $app->getResponse()->setContent($result);
 }
-return $result;
+
+// return response to indicate we already set the content of the response
+return $app->getResponse();
+

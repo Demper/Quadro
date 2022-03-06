@@ -18,8 +18,7 @@ declare(strict_types=1);
 
 namespace Quadro;
 
-use Quadro\Http\RequestInterface as IRequest;
-use Quadro\Http\ResponseInterface as IResponse;
+use Quadro\RequestInterface as IRequest;
 
 /**
  * Interface DispatcherInterface
@@ -34,12 +33,12 @@ interface DispatcherInterface
      *
      * The return Response value can be:
      * a) FALSE     No match
-     * b) IResponse There is a match and the returned (customized) Response object is ready to be send
+     * b) IResponse There is a match and the returned (customized) Response object is ready to be sent
      * c) other     Data is returned to be handled by the default Response object
      *
      * @param IRequest $request
      * @return mixed Returns the response on the request
      */
-    public function handleRequest(IRequest $request):  mixed;
+    public function handleRequest(IRequest $request): mixed;
 
 } // interface

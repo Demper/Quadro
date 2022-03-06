@@ -16,10 +16,10 @@ $request = $app->getRequest();
 /**
  * var \Quadro\Resource\Text $translator Resource Component
  */
-if (!$app->getRegistry()->has(TextResource::getComponentName())) {
+if (!$app->getRegistry()->has(TextResource::getSingletonName())) {
     $app->addComponent(new TextResource);
 }
-$translator = $app->getRegistry()->get(TextResource::getComponentName());
+$translator = $app->getRegistry()->get(TextResource::getSingletonName());
 
 /**
  * First slug will be the language, the second the collection and  the third the text to be translated
