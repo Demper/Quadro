@@ -4,22 +4,31 @@ declare(strict_types=1);
 use Quadro\Application;
 
 if (defined('QUADRO_DIR')) return;
-if (!isset($applicationPath)) $applicationPath = __DIR__ . '/public/';
-
+$applicationPath = $applicationPath ?? '';
 /**
  * Get the path of the calling script and define this as the Application Folder
  * This can also already be defined by the application
  */
 if(!defined('QUADRO_DIR_APPLICATION')) {
     if (is_dir($applicationPath)) {
+        // do not question, apparently this is set by the programmer
+        // we trust him or just let it explode :-)
         define('QUADRO_DIR_APPLICATION', rtrim($applicationPath, DIRECTORY_SEPARATOR). DIRECTORY_SEPARATOR);
     } else {
-        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 1);
-        if (isset($backtrace[0]) && isset($backtrace[0]['file'])) {
-            if (dirname($backtrace[0]['file']) != __DIR__) {
-                define('QUADRO_DIR_APPLICATION', dirname($backtrace[0]['file']) . DIRECTORY_SEPARATOR);
+
+        // when the first callee is the index.php we assume one step up is the Application directory
+        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+        if (count($backtrace) > 0 ) {
+            $backtraceIndex = count($backtrace) - 1;
+            $firstCallee = $backtrace[$backtraceIndex]['file'];
+            if (basename($firstCallee) == 'index.php') {
+                $applicationPath = realpath( dirname($firstCallee) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR);
+                if(false !== $applicationPath) {
+                    define('QUADRO_DIR_APPLICATION', $applicationPath . DIRECTORY_SEPARATOR);
+                }
             }
         }
+
         if (!defined('QUADRO_DIR_APPLICATION')) {
             exit('Quadro Initialization Error: Can not find a valid application path. Use define("QUADRO_DIR_APPLICATION", "/application/path")');
         }

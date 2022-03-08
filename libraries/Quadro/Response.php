@@ -22,6 +22,7 @@ use Quadro\Application as Application;
 use Quadro\Application\Component as Component;
 use Quadro\Response\EnumLinkRelations as EnumLinkRelations;
 use Quadro\ResponseInterface as ResponseInterface;
+use Quadro\Response\Exception as Exception;
 
 /**
  * In the Quadro Restfull API application there can only be one response at

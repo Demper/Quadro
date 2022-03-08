@@ -40,6 +40,8 @@ use Throwable;
  * as global objects. But to ensure there will be only one we implement the singleton pattern in the Quadro\Application
  * class. This wll be the only singleton we wil be using!
  */
+#[Config\Key('cache.directory', '__cache__', 'Default caching directory')]
+#[Config\Key('log.directory', '__log__', 'Default caching directory')]
 class Application implements JsonSerializable
 {
 
@@ -280,7 +282,8 @@ class Application implements JsonSerializable
      * @return static
      * @throws ConfigurationException
      */
-    #[Config\Key('dispatchers.default', 'default', 'Default dispatcher')]
+    #[Config\Key('dispatchers.[n]', 'default', 'Default dispatcher')]
+    //#[Config\Key('dispatchers.default', 'default', 'Default dispatcher')]
     protected function _initCustomDispatchers(): static
     {
         if (!isset($this->_dispatchers)) {
@@ -630,15 +633,14 @@ class Application implements JsonSerializable
 
             // c) We receive some data, add this to the default response object
             } else {
-
                 if (is_string($response)) {
                     $response = trim($response);
                     if (strlen($response)) {
                         $this->getResponse()->setContent($response, true);
                     }
+                } else {
+                    $this->getResponse()->setContent($response);
                 }
-                //print_r($this->getResponse());
-                //exit("Default Response ...");
             }
 
         // Only catch Dispatch exception. Other exceptions are assumed to be

@@ -63,11 +63,17 @@ class Text extends Component
         return $this;
     }
 
+    // -----------------------------------------------------------------------------------------------------------
+
+    /**
+     * Default language
+     */
+    const LANG_DEFAULT = 'en';
 
     /**
      * @var string
      */
-    protected string $_language = 'en';
+    protected string $_language = Text::LANG_DEFAULT;
 
     /**
      * @return string
@@ -87,10 +93,7 @@ class Text extends Component
         return $this;
     }
 
-    /**
-     * Default language
-     */
-    const LANG_DEFAULT = 'en';
+    // -----------------------------------------------------------------------------------------------------------
 
     /**
      * @var array<string[]> $_translationCache
@@ -119,6 +122,8 @@ class Text extends Component
         }
         return vsprintf($this->_translationCache[$collection][$text], $placeholders);
     }
+
+    // -----------------------------------------------------------------------------------------------------------
 
     /**
      * @param string[] $collections

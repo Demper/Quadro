@@ -37,6 +37,10 @@ try {
         if ($file->getExtension() == 'php') {
             $className = str_replace([QUADRO_DIR_LIBRARIES, '.php', DIRECTORY_SEPARATOR], ['', '', '\\'], $file->getPathName());
             $classDef = new \ReflectionClass($className);
+            foreach ($classDef->getAttributes(Quadro\Config\Key::class) as $attribute) {
+                $attributeInstance = $attribute->newInstance();
+                $keys[$attributeInstance->getKey()] = $attributeInstance;
+            }
             foreach ($classDef->getMethods() as $methodDef) {
                 foreach ($methodDef->getAttributes(Quadro\Config\Key::class) as $attribute) {
                     $attributeInstance = $attribute->newInstance();
@@ -58,11 +62,14 @@ header('Content-Type: text/html');
     <head>
         <style>
             body { font-family: verdana; background-color: #B7B7A4;}
+
+            header h1 {width: 90%; margin:auto; color:#6B705C;}
+            header p  {width: 90%; margin:auto; color:#6B705C; font-style: italic; }
             table {width: 90%; margin:auto; color:#6B705C; border-radius: 5px; border:1px solid #6B705C; background-color: #ffffff;}
             th{ padding:5px; font-weight: bold;}
             td{ padding:5px}
             td.key{font-weight: bold;}
-            td.description{color: #B7B7A4; font-style: italic;}
+            td.description{ font-style: italic;}
             tr:nth-child(odd){ background-color:#eeeeee;}
             tr:nth-child(even){background-color:#dddddd;}
             thead tr { background-color:#6B705C !important; color: #FFE8D6; }
@@ -70,6 +77,10 @@ header('Content-Type: text/html');
     </head>
     <body>
 
+    <header>
+        <h1>Quadro</h1>
+        <p><strong>environment state : </strong><?= getenv(Quadro\Application::ENV_INDEX); ?></p>
+    </header>
     <div><?= $errorMessage ?></div>
 
     <table>

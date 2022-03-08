@@ -16,14 +16,33 @@ declare(strict_types=1);
  */
 
 use PHPUnit\Framework\TestCase;
-use Quadro\Request as Request;
+use Quadro\Request\Http as Request;
 
 class RequestMockup Extends Request
 {
-    protected array $postData = [
+    protected array $_postData = [
         'bogus' => 'bogusValue'
     ];
-    protected string $method = Request::METHOD_POST;
+
+    public function getHost(): string
+    {
+         return 'localhost:8080';
+    }
+
+    public function getScheme(): \Quadro\Request\EnumRequestSchemes
+    {
+        return \Quadro\Request\EnumRequestSchemes::HTTP;
+    }
+
+    protected function _setScheme(\Quadro\Request\EnumRequestSchemes $scheme): static
+    {
+        return $this;
+    }
+
+    public function isSecure(): bool
+    {
+        return false;
+    }
 
 }
 
@@ -40,7 +59,7 @@ class RequestTest extends TestCase
         $request = Request::getInstance(true);
         $this->assertEquals($request->getMethod(), Request::method());
         $this->assertEquals($request->getPath(), Request::path());
-        $this->assertEquals('dummy', Request::query('param1', FILTER_SANITIZE_STRING, 'dummy'));
+        $this->assertEquals('dummy', Request::getGetData('param1', FILTER_SANITIZE_STRING, 'dummy'));
         $this->assertEquals('dummy', Request::post('param1', FILTER_SANITIZE_STRING, 'dummy'));
         Request::setInstance('/test/path');
         $request = Request::getInstance();

@@ -5,7 +5,7 @@ namespace Quadro\Config;
 
 Use Attribute;
 
-#[Attribute(Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION | Attribute::TARGET_CLASS)]
+#[Attribute(Attribute::TARGET_METHOD | Attribute::TARGET_FUNCTION | Attribute::TARGET_CLASS | Attribute::IS_REPEATABLE)]
 class Key
 {
     private string $_key;

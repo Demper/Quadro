@@ -16,14 +16,16 @@
  */
 declare(strict_types=1);
 
-use Quadro\Application as App;
+namespace Quadro\Response;
 
-$app = App::getInstance();
+use Quadro\Exception as BaseException;
 
-print_r($app->getRequest());
-print_r($app->getRequest()->getRawBody());
-print_r($app->getRequest()->getRawBodyAsJson());
-print_r($app->getRequest()->getPostData());
+/**
+ * The base Exception class for the Quadro\Application\Registry namespace
+ *
+ * @package Quadro\Application
+ */
+class Exception extends BaseException
+{
 
-
-exit();
+}
