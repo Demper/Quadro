@@ -76,6 +76,11 @@ interface RequestInterface
     public function getPath(): string;
 
     /**
+     * @return array<int, string>
+     */
+    public function getSlugs(): array;
+
+    /**
      * @return EnumRequestMethods
      */
     public function getMethod(): EnumRequestMethods;
