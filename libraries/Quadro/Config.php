@@ -51,7 +51,20 @@ class Config
                 if (!file_exists($options) || !is_readable($options) || is_dir($options)) {
                     throw new Exception(sprintf('Could not open file "%s"', $options));
                 }
-                $options = (array)include $options;
+                $extension = pathinfo($options, PATHINFO_EXTENSION);
+                if ($extension == 'php') {
+                    $options = include $options;
+                    if(!is_array($options)) {
+                        throw new Exception('Expected array to be returned, malformed PHP configuration file');
+                    }
+                } elseif ($extension == 'json') {
+                    $options  = json_decode(file_get_contents($options), true);
+                    if(!is_array($options)) {
+                        throw new Exception('Syntax error, malformed JSON configuration file');
+                    }
+                } else {
+                    throw new Exception(sprintf('Extension %s not supported only *.php and *.json are supported', $extension));
+                }
             }
             $this->setOptions($options);
         }
